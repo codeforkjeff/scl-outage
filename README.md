@@ -14,7 +14,7 @@ list of outages that's ~20 KB and static map images that average ~300 KB.
 
 ```sh
 docker build . -t scl_outage
-docker run -d --rm -p 127.0.0.1:9000:8000 -v maps:/opt/scl_outage/maps -v tile_cache:/opt/scl_outage/tile_cache scl_outage
+docker run -d --restart always --rm -p 127.0.0.1:9000:8000 -v maps:/opt/scl_outage/maps -v tile_cache:/opt/scl_outage/tile_cache scl_outage
 ```
 
 Load http://localhost:9000
