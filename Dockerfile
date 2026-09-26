@@ -14,7 +14,7 @@ COPY . .
 
 RUN mv docker-entrypoint.sh /
 
-VOLUME ["/opt/scl_ourage/maps", "/opt/scl_ourage/tile_cache"]
+VOLUME ["/opt/scl_outage/maps", "/opt/scl_outage/tile_cache"]
 
 EXPOSE 8000
 
