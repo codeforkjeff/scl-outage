@@ -316,7 +316,7 @@
           <button type="button" class="btn-map" onclick="toggleMap(this, {{ e.identifier }})">Show Map</button>
         </div>
         <div class="hidden map-container map-container-{{ e.identifier }}">
-          <img src="event_region/{{ e.identifier }}" loading="lazy" />
+          <img src="event_region/{{ e.identifier }}" loading="lazy" alt="map of affected area for event {{ e.identifier}}">
         </div>
       </article>
       {% endfor %}
