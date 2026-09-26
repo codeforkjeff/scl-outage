@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unofficial Seattle City Light Outages List</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --details-bg: #f8fafc;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --accent-color: #0284c7;
+      --badge-bg: #fef2f2;
+      --badge-color: #b91c1c;
+      --badge-border: #fecaca;
+      --tag-bg: #f1f5f9;
+      --tag-color: #475569;
+      --btn-bg: #ffffff;
+      --btn-color: #1e293b;
+      --btn-border: #cbd5e1;
+      --btn-hover: #f1f5f9;
+      --radius: 8px;
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #0f172a;
+        --card-bg: #1e293b;
+        --details-bg: #0f172a;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --border-color: #334155;
+        --accent-color: #38bdf8;
+        --badge-bg: #450a0a;
+        --badge-color: #fca5a5;
+        --badge-border: #7f1d1d;
+        --tag-bg: #334155;
+        --tag-color: #cbd5e1;
+        --btn-bg: #1e293b;
+        --btn-color: #f8fafc;
+        --btn-border: #475569;
+        --btn-hover: #334155;
+        --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.5;
+      margin: 0;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      margin-bottom: 1.5rem;
+      /*border-bottom: 1px solid var(--border-color);*/
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin: 0 0 0.5rem 0;
+      color: var(--text-main);
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .subtitle a {
+      color: var(--accent-color);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .events-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .event-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem 1.25rem;
+    }
+
+    .event-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .event-title-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .event-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-main);
+    }
+
+    .badge-impact {
+      display: inline-block;
+      font-weight: 500;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      background-color: var(--badge-bg);
+      color: var(--badge-color);
+      border: 1px solid var(--badge-border);
+      white-space: nowrap;
+    }
+
+    .event-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-muted);
+    }
+
+    .meta-city {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      background-color: var(--tag-bg);
+      color: var(--tag-color);
+      font-weight: 500;
+    }
+
+    .meta-updated {
+      color: var(--text-muted);
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 0.75rem 1.5rem;
+      margin: 0 0 1rem 0;
+      padding: 0.85rem 1rem;
+      background-color: var(--details-bg);
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+
+    .detail-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .detail-value {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text-main);
+      margin: 0;
+      word-break: break-word;
+    }
+
+    @media (max-width: 480px) {
+      .detail-row {
+        grid-template-columns: 1fr;
+        gap: 0.15rem;
+      }
+    }
+
+    .event-actions {
+      display: flex;
+      align-items: center;
+      margin-top: 0.75rem;
+    }
+
+    .btn-map {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--btn-color);
+      background-color: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-map:hover {
+      background-color: var(--btn-hover);
+    }
+
+    .btn-map:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .map-container {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px dashed var(--border-color);
+    }
+
+    .map-container img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+  </style>
+  <script>
+    const toggleMap = (srcElement, eventId) => {
+      const container = document.getElementsByClassName(`map-container-${eventId}`)[0];
+      if(container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        srcElement.textContent = "Hide Map";
+      } else {
+        container.classList.add('hidden');
+        srcElement.textContent = "Show Map";
+      }
+    };
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <h1>Unofficial Seattle City Light Outages List</h1>
+      <p class="subtitle">This is an unofficial, very low bandwidth version of
+        <a href="https://www.seattle.gov/city-light/outages">this page</a>.
+      </p>
+
+      <p>
+        As of {{pretty_date(events_date)}}, there are {{ total_outage_count }} outages affecting {{ total_people_affected }} people.
+      </p>
+    </header>
+
+    <main class="events-list">
+      {% for e in events %}
+      <article class="event-card event-entry">
+        <header class="event-header">
+          <div class="event-title-group">
+            <h2 class="event-title">{{ e.title }}</h2>
+            <span class="badge-impact">{{ e.numPeople }} affected</span>
+          </div>
+          <div class="event-meta">
+            <span class="meta-city">{{ e.city }}</span>
+            <span class="meta-updated">Updated: {{ pretty_date(e.lastUpdatedTime) }}</span>
+          </div>
+        </header>
+
+        <dl class="details-grid">
+          <div class="detail-row">
+            <dt class="detail-label">Start</dt>
+            <dd class="detail-value">{{ pretty_date(e.startTime) }}</dd>
+          </div>
+          <div class="detail-row">
+            <dt class="detail-label">Est Restoration</dt>
+            <dd class="detail-value">{{ pretty_date(e.etrTime) }}</dd>
+          </div>
+          <div class="detail-row">
+            <dt class="detail-label">Cause</dt>
+            <dd class="detail-value">{{ e.cause }}</dd>
+          </div>
+          <div class="detail-row">
+            <dt class="detail-label">Status</dt>
+            <dd class="detail-value">{{ e.status }}</dd>
+          </div>
+        </dl>
+
+        <div class="event-actions">
+          <button type="button" class="btn-map" onclick="toggleMap(this, {{ e.identifier }})">Show Map</button>
+        </div>
+        <div class="hidden map-container map-container-{{ e.identifier }}">
+          <img src="event_region/{{ e.identifier }}" loading="lazy" />
+        </div>
+      </article>
+      {% endfor %}
+    </main>
+  </div>
+</body>
+</html>

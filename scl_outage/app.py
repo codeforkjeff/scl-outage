@@ -1,0 +1,142 @@
+import copy
+import datetime
+import json
+import logging
+import os
+import re
+from pathlib import Path
+import time
+import urllib.request
+from zoneinfo import ZoneInfo
+
+from cachetools import cached, TTLCache
+from filelock import FileLock
+from flask import Flask, make_response, render_template, send_file
+
+from .maps import generate_map, DEFAULT_PADDING
+
+URL = "https://utilisocial.io/datacapable/v2/p/scl/map/events"
+
+TIMEZONE = ZoneInfo("America/Los_Angeles")
+
+EVENTS_PATH = "events.json"
+EVENTS_PATH_LOCK = "events.json.lock"
+EVENTS_FILE_EXPIRATION = 120
+
+app = Flask(__name__)
+
+events_lock = FileLock(EVENTS_PATH_LOCK)
+
+if os.getenv("DEV"):
+    logging.basicConfig(level=logging.DEBUG)
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+
+@app.context_processor
+def utility_processor():
+    def pretty_time(dt):
+        s = dt.strftime("%I:%M") + dt.strftime("%p").lower()
+        return re.sub(r"^0", "", s)
+
+    def pretty_date(dt):
+        """show just time portion if date is today's date"""
+        now = get_now()
+        if isinstance(dt, datetime.datetime):
+            if now.strftime("%Y/%m/%d") == dt.strftime("%Y/%m/%d"):
+                return pretty_time(dt)
+            s = dt.strftime("%m/%d ") + pretty_time(dt)
+            return re.sub(r"^0", "", s)
+        else:
+            return dt or "-"
+
+    return dict(pretty_date=pretty_date)
+
+
+@cached(cache=TTLCache(maxsize=1024, ttl=2))
+def get_now():
+    return datetime.datetime.now(tz=TIMEZONE)
+
+
+def get_events():
+    raw = None
+    events_timestamp = 0
+    if os.path.exists(EVENTS_PATH):
+        events_timestamp = os.path.getmtime(EVENTS_PATH)
+        logging.debug(events_timestamp)
+    with events_lock:
+        if time.time() - events_timestamp <= EVENTS_FILE_EXPIRATION:
+            logging.debug(f"Loading cached {EVENTS_PATH}")
+            with open(EVENTS_PATH, encoding="utf-8") as f:
+                raw = f.read()
+        else:
+            logging.debug(f"Making request to {URL}")
+            with urllib.request.urlopen(URL) as f:
+                raw = f.read().decode("utf-8")
+                with open(EVENTS_PATH, "w", encoding="utf-8") as output_file:
+                    output_file.write(raw)
+                events_timestamp = os.path.getmtime(EVENTS_PATH)
+    events = json.loads(raw)
+    return (events, events_timestamp)
+
+
+def timestamp_to_datetime(ts, input_type="milliseconds"):
+    _ts = ts
+    if input_type == "milliseconds":
+        _ts = int(ts) / 1000
+    return datetime.datetime.fromtimestamp(_ts).astimezone(tz=TIMEZONE)
+
+
+def prettify_datetime(dt):
+    s = str(dt)
+    return s[: s.index(".")]
+
+
+@app.route("/")
+def index():
+    events, events_timestamp = copy.deepcopy(get_events())
+
+    total_outage_count = 0
+    total_people_affected = 0
+
+    for e in events:
+        for time_field in ["startTime", "lastUpdatedTime", "etrTime"]:
+            val = e.get(time_field)
+            e[time_field] = timestamp_to_datetime(val) if val else "Unknown"
+        e["status"] = e.get("status", "Unknown")
+
+        total_outage_count += 1
+        total_people_affected += e["numPeople"]
+
+    template_data = {
+        "now": get_now(),
+        "events": events,
+        "events_date": timestamp_to_datetime(events_timestamp, input_type="seconds"),
+        "total_outage_count": total_outage_count,
+        "total_people_affected": total_people_affected,
+    }
+
+    response = make_response(render_template("index.jinja", **template_data))
+
+    # expire immediately
+    response.headers["Expires"] = "0"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+
+    return response
+
+
+@app.route("/event_region/<int:event_id>")
+def event_region(event_id: int):
+    events, _ = get_events()
+    # note we use 'identifier' which is the publicly visible ID on the frontend,
+    # and not the 'id' field
+    event = [e for e in events if str(e["identifier"]) == str(event_id)][0]
+    output_dir = Path(os.getcwd()) / Path("maps")
+    image_path = Path(os.getcwd()) / output_dir / f"region_{event_id}.png"
+    if not image_path.exists():
+        output = generate_map(event, output_dir, None, 0.4, True)
+        if output != image_path:
+            logging.warning(
+                f"WARNING: generated filename {output} doesn't match expected image file path {image_path}"
+            )
+    return send_file(image_path, mimetype="image/png")
