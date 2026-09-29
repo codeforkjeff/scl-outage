@@ -18,3 +18,10 @@ docker run -d --restart always -p 127.0.0.1:9000:8000 -v maps:/opt/scl_outage/ma
 ```
 
 Load http://localhost:9000
+
+# Local Development
+
+```sh
+uv sync
+DEV=1 uv run gunicorn --reload scl_outage
+```
