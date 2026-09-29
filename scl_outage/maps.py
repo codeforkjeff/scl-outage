@@ -8,7 +8,7 @@ import os
 import os.path
 import sys
 import time
-from typing import Iterable
+from typing import Iterable, List
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -112,6 +112,12 @@ def check_network() -> bool:
         return True
     except Exception:
         return False
+
+
+def map_filename(events: List):
+    event_ids = sorted([int(e["identifier"]) for e in events])
+    event_ids_str = "_".join([str(event_id) for event_id in event_ids])
+    return f"region_{event_ids_str}.png"
 
 
 def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
@@ -283,35 +289,48 @@ def mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event: dict):
     return Image.open(buf).convert("RGB")
 
 
+def get_rings(events):
+    rings = []
+    for event in events:
+        poly_obj = event.get("polygons", {})
+        rings.extend(poly_obj.get("rings", []))
+    return rings
+
+
+def get_min_max(rings):
+    """Returns min and max lat and lon values in a set of events"""
+    if not rings:
+        return (None, None, None, None)
+
+    all_lats = [c[1] for ring in rings for c in ring]
+    all_lons = [c[0] for ring in rings for c in ring]
+    if not all_lats:
+        return (None, None, None, None)
+
+    lat_min, lat_max = min(all_lats), max(all_lats)
+    lon_min, lon_max = min(all_lons), max(all_lons)
+
+    return (lat_min, lat_max, lon_min, lon_max)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Per-event driver
 # ══════════════════════════════════════════════════════════════════════════════
 
 
 def generate_map(
-    event: dict, output_dir: Path, zoom_override, padding_miles: float, use_osm: bool
+    events: List[dict], output_dir: Path, zoom_override, padding_miles: float, use_osm: bool
 ):
-    poly_obj = event.get("polygons", {})
-    rings = poly_obj.get("rings", [])
-    if not rings:
-        return None
+    rings = get_rings(events)
+    e_lat_min, e_lat_max, e_lon_min, e_lon_max = get_min_max(rings)
 
-    all_lats = [c[1] for ring in rings for c in ring]
-    all_lons = [c[0] for ring in rings for c in ring]
-    if not all_lats:
-        return None
-
-    lat_min, lat_max = min(all_lats), max(all_lats)
-    lon_min, lon_max = min(all_lons), max(all_lons)
     lat_min, lat_max, lon_min, lon_max = pad_bbox(
-        lat_min, lat_max, lon_min, lon_max, padding_miles
+        e_lat_min, e_lat_max, e_lon_min, e_lon_max, padding_miles
     )
 
     zoom = zoom_override or choose_zoom(lat_max - lat_min, lon_max - lon_min)
 
-    eid = str(event.get("identifier", event.get("id", "unknown")))
-    safe_id = eid.replace("/", "_").replace("\\", "_")
-    out = output_dir / f"region_{safe_id}.png"
+    out = output_dir / map_filename(events)
 
     if use_osm:
         img = osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom)

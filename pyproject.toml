@@ -11,4 +11,5 @@ dependencies = [
     "gunicorn==26.2.0",
     "pillow==12.1.1",
     "matplotlib==3.10.8",
+    "shapely==2.1.2",
 ]

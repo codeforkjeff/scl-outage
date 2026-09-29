@@ -1,5 +1,6 @@
 import copy
 import datetime
+import itertools
 import json
 import logging
 import os
@@ -13,7 +14,8 @@ from cachetools import cached, TTLCache
 from filelock import FileLock
 from flask import Flask, make_response, render_template, send_file
 
-from .maps import generate_map, DEFAULT_PADDING
+from .maps import generate_map, get_min_max, get_rings, map_filename
+from .neighborhoods import get_neighborhood_details
 
 URL = "https://utilisocial.io/datacapable/v2/p/scl/map/events"
 
@@ -91,6 +93,27 @@ def prettify_datetime(dt):
     return s[: s.index(".")]
 
 
+def get_neighborhood_for_event(event):
+    """
+    find the midpoint in a geometry ring and use that to determine neighborhood
+    """
+    rings = get_rings([event])
+    lat_min, lat_max, lon_min, lon_max = get_min_max(rings)
+
+    lat_mid = lat_min + ((lat_max - lat_min) / 2)
+    lon_mid = lon_min + ((lon_max - lon_min) / 2)
+
+    details = get_neighborhood_details(lat_mid, lon_mid)
+    if details:
+        s_hood = details.get("s_hood")
+        l_hood = details.get("l_hood")
+        if s_hood != l_hood:
+            return f"{s_hood} ({l_hood})"
+        else:
+            return s_hood
+    return event["city"]
+
+
 @app.route("/")
 def index():
     events, events_timestamp = copy.deepcopy(get_events())
@@ -104,12 +127,19 @@ def index():
             e[time_field] = timestamp_to_datetime(val) if val else "Unknown"
         e["status"] = e.get("status", "Unknown")
 
+        e["neighborhood"] = get_neighborhood_for_event(e)
+
         total_outage_count += 1
         total_people_affected += e["numPeople"]
+
+    by_neighborhood = list(
+        itertools.groupby(events, lambda e: e.get("neighborhood", "Unknown"))
+    )
 
     template_data = {
         "now": get_now(),
         "events": events,
+        "by_district": by_neighborhood,
         "events_date": timestamp_to_datetime(events_timestamp, input_type="seconds"),
         "total_outage_count": total_outage_count,
         "total_people_affected": total_people_affected,
@@ -125,18 +155,23 @@ def index():
     return response
 
 
-@app.route("/event_region/<int:event_id>")
-def event_region(event_id: int):
+@app.route("/event_region/<event_ids_str>")
+def event_region(event_ids_str: str):
     events, _ = get_events()
-    # note we use 'identifier' which is the publicly visible ID on the frontend,
-    # and not the 'id' field
-    event = [e for e in events if str(e["identifier"]) == str(event_id)][0]
-    output_dir = Path(os.getcwd()) / Path("maps")
-    image_path = Path(os.getcwd()) / output_dir / f"region_{event_id}.png"
-    if not image_path.exists():
-        output = generate_map(event, output_dir, None, 0.4, True)
-        if output != image_path:
-            logging.warning(
-                f"WARNING: generated filename {output} doesn't match expected image file path {image_path}"
-            )
+
+    event_ids = sorted([int(e_id.strip()) for e_id in event_ids_str.split(",")])
+
+    for event_id in event_ids:
+        # note we use 'identifier' which is the publicly visible ID on the frontend,
+        # and not the 'id' field
+        filtered_events = [e for e in events if int(e["identifier"]) in event_ids]
+        output_dir = Path(os.getcwd()) / Path("maps")
+        image_path = Path(os.getcwd()) / output_dir / map_filename(filtered_events)
+
+        if not image_path.exists():
+            output = generate_map(filtered_events, output_dir, None, 0.4, True)
+            if output != image_path:
+                logging.warning(
+                    f"WARNING: generated filename {output} doesn't match expected image file path {image_path}"
+                )
     return send_file(image_path, mimetype="image/png")
