@@ -325,7 +325,7 @@ def get_min_max(rings):
 
 def generate_map(
     events: List[dict],
-    output_dir: Path,
+    output_path: Path,
     zoom_override,
     padding_miles: float,
     use_osm: bool,
@@ -339,15 +339,13 @@ def generate_map(
 
     zoom = zoom_override or choose_zoom(lat_max - lat_min, lon_max - lon_min)
 
-    out = output_dir / map_filename(events)
-
     if use_osm:
         img = osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom)
     else:
         img = mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event)
 
-    img.save(out, "PNG", optimize=True)
-    return out
+    img.save(output_path, "PNG", optimize=True)
+    return output_path
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -408,7 +406,8 @@ def main():
         city = ev.get("city", "")
         logging.debug(f"[{i+1:>3}/{len(events)}] #{label}  {city}")
         try:
-            out = generate_map(ev, out_dir, args.zoom, args.padding, use_osm)
+            output_path = out_dir / map_filename([ev])
+            out = generate_map([ev], output_path, args.zoom, args.padding, use_osm)
             if out:
                 logging.debug(f"ok  {out.name}")
                 ok += 1

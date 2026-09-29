@@ -136,8 +136,11 @@ def index():
         itertools.groupby(events, lambda e: e.get("neighborhood", "Unknown"))
     )
 
+    now = get_now()
+
     template_data = {
-        "now": get_now(),
+        "now": now,
+        "ts": int(now.timestamp()),
         "events": events,
         "by_district": by_neighborhood,
         "events_date": timestamp_to_datetime(events_timestamp, input_type="seconds"),
@@ -168,10 +171,6 @@ def event_region(event_ids_str: str):
     image_path = Path(os.getcwd()) / output_dir / map_filename(filtered_events)
 
     if not image_path.exists():
-        output = generate_map(filtered_events, output_dir, None, 0.4, True)
-        if output != image_path:
-            logging.warning(
-                f"WARNING: generated filename {output} doesn't match expected image file path {image_path}"
-            )
+        generate_map(filtered_events, image_path, None, 0.4, True)
 
     return send_file(image_path, mimetype="image/png")
