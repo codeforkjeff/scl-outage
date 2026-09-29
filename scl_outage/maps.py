@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from hashlib import md5
 import io
 import json
 import logging
@@ -115,9 +116,13 @@ def check_network() -> bool:
 
 
 def map_filename(events: List):
-    event_ids = sorted([int(e["identifier"]) for e in events])
+    events_sorted = sorted(events, key=lambda e: int(e["identifier"]))
+    event_ids = [int(e["identifier"]) for e in events_sorted]
     event_ids_str = "_".join([str(event_id) for event_id in event_ids])
-    return f"region_{event_ids_str}.png"
+
+    hash = md5(str(get_rings(events_sorted)).encode("utf-8")).hexdigest()
+
+    return f"region_{event_ids_str}_{hash}.png"
 
 
 def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
@@ -319,7 +324,11 @@ def get_min_max(rings):
 
 
 def generate_map(
-    events: List[dict], output_dir: Path, zoom_override, padding_miles: float, use_osm: bool
+    events: List[dict],
+    output_dir: Path,
+    zoom_override,
+    padding_miles: float,
+    use_osm: bool,
 ):
     rings = get_rings(events)
     e_lat_min, e_lat_max, e_lon_min, e_lon_max = get_min_max(rings)
