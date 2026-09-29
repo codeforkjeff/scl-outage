@@ -13,3 +13,8 @@ dependencies = [
     "matplotlib==3.10.8",
     "shapely==2.1.2",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]

@@ -8,7 +8,7 @@ WORKDIR /opt/scl_outage
 COPY pyproject.toml uv.lock .
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-  uv sync --locked
+  uv sync --locked --no-dev
 
 COPY . .
 
