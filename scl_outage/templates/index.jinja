@@ -245,6 +245,34 @@
       border-top: 1px dashed var(--border-color);
     }
 
+    .map-loader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      padding: 1.5rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      background-color: var(--details-bg);
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .map-spinner {
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid var(--border-color);
+      border-top-color: var(--accent-color);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .map-container img {
       display: block;
       max-width: 100%;
@@ -252,16 +280,53 @@
       border-radius: 6px;
       border: 1px solid var(--border-color);
     }
+
+    .map-container img.is-loading {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
   </style>
   <script>
     const toggleMap = (srcElement, eventId) => {
       const container = document.getElementsByClassName(`map-container-${eventId}`)[0];
-      if(container.classList.contains('hidden')) {
+      if (!container) return;
+
+      if (container.classList.contains('hidden')) {
         container.classList.remove('hidden');
         srcElement.textContent = "Hide Map";
+
+        const img = container.querySelector('img');
+        const loader = document.getElementById(`loader-${eventId}`);
+
+        if (img && img.complete && img.naturalWidth > 0) {
+          if (loader) loader.classList.add('hidden');
+          img.classList.remove('is-loading');
+        } else {
+          if (loader) loader.classList.remove('hidden');
+          if (img) img.classList.add('is-loading');
+        }
       } else {
         container.classList.add('hidden');
         srcElement.textContent = "Show Map";
+      }
+    };
+
+    const handleMapLoad = (img, eventId) => {
+      const loader = document.getElementById(`loader-${eventId}`);
+      if (loader) loader.classList.add('hidden');
+      img.classList.remove('is-loading');
+    };
+
+    const handleMapError = (img, eventId) => {
+      const loader = document.getElementById(`loader-${eventId}`);
+      if (loader) {
+        const text = loader.querySelector('.loader-text');
+        if (text) text.textContent = "Failed to load map.";
+        const spinner = loader.querySelector('.map-spinner');
+        if (spinner) spinner.classList.add('hidden');
       }
     };
   </script>
@@ -316,7 +381,18 @@
           <button type="button" class="btn-map" onclick="toggleMap(this, {{ e.identifier }})">Show Map</button>
         </div>
         <div class="hidden map-container map-container-{{ e.identifier }}">
-          <img src="event_region/{{ e.identifier }}" loading="lazy" alt="map of affected area for event {{ e.identifier}}">
+          <div class="map-loader" id="loader-{{ e.identifier }}">
+            <span class="map-spinner" aria-hidden="true"></span>
+            <span class="loader-text">Loading map...</span>
+          </div>
+          <img
+            src="event_region/{{ e.identifier }}"
+            class="is-loading"
+            loading="lazy"
+            alt="map of affected area for event {{ e.identifier}}"
+            onload="handleMapLoad(this, {{ e.identifier }})"
+            onerror="handleMapError(this, {{ e.identifier }})"
+          >
         </div>
       </article>
       {% endfor %}
