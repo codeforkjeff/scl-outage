@@ -161,17 +161,17 @@ def event_region(event_ids_str: str):
 
     event_ids = sorted([int(e_id.strip()) for e_id in event_ids_str.split(",")])
 
-    for event_id in event_ids:
-        # note we use 'identifier' which is the publicly visible ID on the frontend,
-        # and not the 'id' field
-        filtered_events = [e for e in events if int(e["identifier"]) in event_ids]
-        output_dir = Path(os.getcwd()) / Path("maps")
-        image_path = Path(os.getcwd()) / output_dir / map_filename(filtered_events)
+    # note we use 'identifier' which is the publicly visible ID on the frontend,
+    # and not the 'id' field
+    filtered_events = [e for e in events if int(e["identifier"]) in event_ids]
+    output_dir = Path(os.getcwd()) / Path("maps")
+    image_path = Path(os.getcwd()) / output_dir / map_filename(filtered_events)
 
-        if not image_path.exists():
-            output = generate_map(filtered_events, output_dir, None, 0.4, True)
-            if output != image_path:
-                logging.warning(
-                    f"WARNING: generated filename {output} doesn't match expected image file path {image_path}"
-                )
+    if not image_path.exists():
+        output = generate_map(filtered_events, output_dir, None, 0.4, True)
+        if output != image_path:
+            logging.warning(
+                f"WARNING: generated filename {output} doesn't match expected image file path {image_path}"
+            )
+
     return send_file(image_path, mimetype="image/png")
