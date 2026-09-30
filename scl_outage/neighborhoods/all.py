@@ -14,13 +14,15 @@ _data_sources = None
 
 
 def get_data_sources() -> List[DataSource]:
+    """
+    get all available data sources
+    """
     global _data_sources
     if _data_sources is None:
         _data_sources = []
         for module_name in modules:
             module = importlib.import_module(f"{prefix}.{module_name}")
-            if hasattr(module, "datasource"):
-                _data_sources.append(getattr(module, "datasource"))
+            _data_sources.append(getattr(module, "datasource"))
     return _data_sources
 
 
@@ -28,6 +30,9 @@ _neighborhood_index = None
 
 
 def get_neighborhood_index():
+    """
+    singleton index that contains data from all neighborhood data sources
+    """
     global _neighborhood_index
     if _neighborhood_index is None:
         _neighborhood_index = NeighborhoodIndex(
