@@ -1,5 +1,5 @@
 
-# Seattle City Light Outage
+# Seattle City Light Outages
 
 See it here: https://scl.codefork.com
 
@@ -7,8 +7,9 @@ This is an unofficial, very low bandwidth version of [this page](https://www.sea
 
 I made this so I can view outage information quickly on my phone, which has
 bad reception when my home internet is down. The Seattle City Light page makes
-over 300 requests and fetches over 5 MB of assets. This app renders a simple text
-list of outages that's ~20 KB and static map images that average ~300 KB.
+over 300 requests and fetches over 5 MB (compressed) of assets. This app renders
+a simple text list of outages that's ~20 KB and static map images that average
+~300 KB.
 
 # How to Run
 

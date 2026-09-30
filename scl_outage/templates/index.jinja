@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unofficial Seattle City Light Outages List</title>
+  <title>Seattle City Light Outages</title>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -334,13 +334,14 @@
 <body>
   <div class="container">
     <header class="page-header">
-      <h1>Unofficial Seattle City Light Outages List</h1>
+      <h1>Seattle City Light Outages</h1>
       <p class="subtitle">This is an unofficial, very low bandwidth version of
         <a href="https://www.seattle.gov/city-light/outages">this page</a>.
       </p>
 
       <p>
         As of {{pretty_date(events_date)}}, there are {{ total_outage_count }} outages affecting {{ total_people_affected }} people.
+        Data is refreshed every {{ events_file_expiration }} mins.
       </p>
     </header>
 

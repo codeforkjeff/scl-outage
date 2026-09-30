@@ -24,7 +24,7 @@ TIMEZONE = ZoneInfo("America/Los_Angeles")
 
 EVENTS_PATH = "events.json"
 EVENTS_PATH_LOCK = "events.json.lock"
-EVENTS_FILE_EXPIRATION = 120
+EVENTS_FILE_EXPIRATION = 2
 
 app = Flask(__name__)
 
@@ -73,7 +73,7 @@ def get_events():
             events_timestamp = os.path.getmtime(EVENTS_PATH)
             logging.debug(events_timestamp)
         with events_lock:
-            if time.time() - events_timestamp <= EVENTS_FILE_EXPIRATION:
+            if time.time() - events_timestamp <= (EVENTS_FILE_EXPIRATION * 60):
                 logging.debug(f"Loading cached {EVENTS_PATH}")
                 with open(EVENTS_PATH, encoding="utf-8") as f:
                     raw = f.read()
@@ -147,6 +147,7 @@ def index():
     template_data = {
         "now": now,
         "ts": int(now.timestamp()),
+        "events_file_expiration": EVENTS_FILE_EXPIRATION,
         "events": events,
         "by_district": by_neighborhood,
         "events_date": timestamp_to_datetime(events_timestamp, input_type="seconds"),
