@@ -1,6 +1,8 @@
 
 FROM python:3.14-slim
 
+RUN rm /etc/localtime && ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /opt/scl_outage
