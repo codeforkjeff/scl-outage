@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import logging
 from pathlib import Path
 from typing import Any, Callable, List
 from urllib.request import url2pathname
@@ -18,6 +19,8 @@ import shapely
 from shapely.geometry import Point, mapping, shape
 from shapely.ops import transform
 from shapely.strtree import STRtree
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,6 +36,7 @@ class DataSource:
 class Neighborhood:
     name: str
     geometry: object
+    source: str | None
 
 
 class NeighborhoodIndex:
@@ -52,21 +56,34 @@ class NeighborhoodIndex:
         matches = self.tree.query(point, predicate="intersects")
         if len(matches) == 0:
             return None
+        if len(matches) > 1:
+            # de-prioritize source=="wa"
+            neighborhood_matches = sorted(
+                [self.neighborhoods[i] for i in matches],
+                key=lambda n: 1 if n.source == "wa" else 0,
+            )
+            log.warning(
+                f"More than more match found for {lat}, {lng}: {neighborhood_matches}"
+            )
+            return neighborhood_matches[0]
+
         return self.neighborhoods[matches[0]]
 
 
-def create_neighborhood(feature: dict, extract_name: Callable) -> Neighborhood:
+def create_neighborhood(
+    feature: dict, extract_name: Callable, source: str | None
+) -> Neighborhood:
     """
     Create a Neighborhood object out of a feature record found in a geojson file
     """
     geom = shape(feature["geometry"])
     props = feature.get("properties", {})
     name = extract_name(props)
-    return Neighborhood(name=name, geometry=geom)
+    return Neighborhood(name=name, geometry=geom, source=source)
 
 
 def load_neighborhoods_from_geojson(
-    geojson_path: Path | str, extract_name: Callable
+    geojson_path: Path | str, extract_name: Callable, source: str | None = None
 ) -> List[Neighborhood]:
     """
     Read a geojson file and create Neighborhood objects out of it
@@ -75,7 +92,7 @@ def load_neighborhoods_from_geojson(
         data = json.load(f)
 
     neighborhoods = [
-        create_neighborhood(f, extract_name) for f in data.get("features", [])
+        create_neighborhood(f, extract_name, source) for f in data.get("features", [])
     ]
 
     return neighborhoods

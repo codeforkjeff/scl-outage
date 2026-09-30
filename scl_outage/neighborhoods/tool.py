@@ -3,13 +3,17 @@ CLI for working with neighborhood data: namely, converting to geojson files
 from various original data sources, and sanity checking coordinates
 """
 import argparse
+from itertools import chain
 import urllib.request
 from pathlib import Path
+
+from shapely.geometry import mapping
 
 from ..maps import (
     DEFAULT_PADDING,
     check_network,
     generate_map_from_rings,
+    geojson_geometry_to_rings,
     get_geojson_rings,
 )
 from .all import get_data_sources, get_neighborhood_index
@@ -43,17 +47,36 @@ def coverage(
     if target_path.is_dir():
         target_path = target_path / "coverage.png"
 
-    neighborhoods_dir = Path(__file__).resolve().parent
-    geojson_files = sorted(neighborhoods_dir.glob("*.geojson"))
-    if not geojson_files:
-        raise FileNotFoundError(f"No .geojson files found in {neighborhoods_dir}")
+    def x(val):
+        tmp = mapping(val)
+        print(tmp)
+        return tmp
 
     rings = []
-    for geojson_file in geojson_files:
-        rings.extend(get_geojson_rings(geojson_file))
+    for data_source in get_data_sources():
+        rings.extend(
+            list(
+                chain.from_iterable(
+                    [
+                        geojson_geometry_to_rings(mapping(n.geometry))
+                        for n in data_source.neighborhoods_fn()
+                    ]
+                )
+            )
+        )
 
-    if not rings:
-        raise ValueError(f"No polygon rings found in {geojson_files}")
+    # neighborhoods_dir = Path(__file__).resolve().parent
+    # geojson_files = sorted(neighborhoods_dir.glob("*.geojson"))
+    # if not geojson_files:
+    #     raise FileNotFoundError(f"No .geojson files found in {neighborhoods_dir}")
+
+    # rings = []
+    # for geojson_file in geojson_files:
+    #     rings.extend(get_geojson_rings(geojson_file))
+
+    # print(rings)
+    # if not rings:
+    #     raise ValueError(f"No polygon rings found in {geojson_files}")
 
     generate_map_from_rings(
         rings=rings,

@@ -306,6 +306,23 @@ def get_rings(events):
     return rings
 
 
+def geojson_geometry_to_rings(geom: dict):
+    """
+    geom = the "geometry" property of a feature in a geojson file
+    """
+    rings = []
+    if not geom:
+        return
+    gtype = geom.get("type")
+    coords = geom.get("coordinates", [])
+    if gtype == "Polygon":
+        rings.extend(coords)
+    elif gtype == "MultiPolygon":
+        for poly in coords:
+            rings.extend(poly)
+    return rings
+
+
 def get_geojson_rings(geojson_source: dict | Path | str) -> list:
     """Extract polygon coordinate rings from GeoJSON (dict, file path, or string path)."""
     if isinstance(geojson_source, (str, Path)):

@@ -7,8 +7,8 @@ from .base import DataSource, NeighborhoodIndex
 
 prefix = ".".join(__name__.split(".")[0:-1])
 
-# TODO: add: Burien, Lake Forest Park
-modules = ["renton", "seattle", "shoreline"]
+# TODO: add: Lake Forest Park, Burien, Skyway-Bryn Mawr
+modules = ["renton", "seattle", "shoreline", "tukwila", "wa"]
 
 _data_sources = None
 
