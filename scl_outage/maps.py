@@ -38,6 +38,8 @@ OUTLINE_W = 2
 
 MILES_PER_DEG_LAT = 69.0
 
+log = logging.getLogger(__name__)
+
 
 def deg2num(lat: float, lon: float, zoom: int) -> tuple:
     """Lat/lon -> fractional OSM tile number."""
@@ -82,7 +84,7 @@ def fetch_tile(z: int, x: int, y: int):
     path = os.path.join(CACHE_DIR, filename)
     if os.path.exists(path):
         with open(path, "rb") as f:
-            logging.debug("got cached tile")
+            log.debug("got cached tile")
             data = f.read()
     else:
         url = OSM_URL.format(z=z, x=x, y=y)
@@ -388,37 +390,37 @@ def main():
 
     if args.offline:
         use_osm = False
-        logging.debug("Offline mode: using matplotlib renderer.")
+        log.debug("Offline mode: using matplotlib renderer.")
     else:
-        logging.debug("Checking OSM tile server connectivity...")
+        log.debug("Checking OSM tile server connectivity...")
         use_osm = check_network()
-        logging.debug(
+        log.debug(
             "OK - using OSM tiles."
             if use_osm
             else "OSM unreachable - falling back to matplotlib renderer."
         )
 
-    logging.debug(f"\nGenerating {len(events)} maps -> {out_dir}")
+    log.debug(f"\nGenerating {len(events)} maps -> {out_dir}")
 
     ok = 0
     for i, ev in enumerate(events):
         label = ev.get("identifier") or ev.get("id") or i
         city = ev.get("city", "")
-        logging.debug(f"[{i+1:>3}/{len(events)}] #{label}  {city}")
+        log.debug(f"[{i+1:>3}/{len(events)}] #{label}  {city}")
         try:
             output_path = out_dir / map_filename([ev])
             out = generate_map([ev], output_path, args.zoom, args.padding, use_osm)
             if out:
-                logging.debug(f"ok  {out.name}")
+                log.debug(f"ok  {out.name}")
                 ok += 1
             else:
-                logging.debug("skipped (no rings)")
+                log.debug("skipped (no rings)")
         except Exception as e:
-            logging.error(f"ERROR  {e}")
+            log.error(f"ERROR  {e}")
         if use_osm:
             time.sleep(0.15)  # be polite to the tile server
 
-    logging.debug(f"Done - {ok}/{len(events)} maps saved to {out_dir}")
+    log.debug(f"Done - {ok}/{len(events)} maps saved to {out_dir}")
 
 
 if __name__ == "__main__":

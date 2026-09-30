@@ -30,8 +30,12 @@ app = Flask(__name__)
 
 events_lock = FileLock(EVENTS_PATH_LOCK)
 
+log = logging.getLogger(__name__)
+
 if os.getenv("DEV"):
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("scl_outage").setLevel(logging.DEBUG)
+
     app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 
@@ -71,14 +75,13 @@ def get_events():
     else:
         if os.path.exists(EVENTS_PATH):
             events_timestamp = os.path.getmtime(EVENTS_PATH)
-            logging.debug(events_timestamp)
         with events_lock:
             if time.time() - events_timestamp <= (EVENTS_FILE_EXPIRATION * 60):
-                logging.debug(f"Loading cached {EVENTS_PATH}")
+                log.debug(f"Loading cached {EVENTS_PATH}")
                 with open(EVENTS_PATH, encoding="utf-8") as f:
                     raw = f.read()
             else:
-                logging.debug(f"Making request to {URL}")
+                log.debug(f"Making request to {URL}")
                 with urllib.request.urlopen(URL) as f:
                     raw = f.read().decode("utf-8")
                     with open(EVENTS_PATH, "w", encoding="utf-8") as output_file:
@@ -115,7 +118,7 @@ def get_neighborhood_for_event(event):
     if neighborhood:
         return neighborhood.name
 
-    logging.warning(f"Could not find a neighborhood name for ({lat_mid}, {lon_mid})")
+    log.warning(f"Could not find a neighborhood name for ({lat_mid}, {lon_mid})")
 
     return event["city"]
 
