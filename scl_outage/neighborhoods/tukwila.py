@@ -23,7 +23,7 @@ def get_tukwila_neighborhoods():
 datasource = DataSource(
     None,
     None,
-    None,
+    GEOJSON_PATH,
     None,
     get_tukwila_neighborhoods,
 )
