@@ -15,7 +15,8 @@ from filelock import FileLock
 from flask import Flask, make_response, render_template, send_file
 
 from .maps import generate_map, get_min_max, get_rings, map_filename
-from .neighborhoods import get_neighborhood_details
+from .neighborhoods.all import get_neighborhood_index
+
 
 URL = "https://utilisocial.io/datacapable/v2/p/scl/map/events"
 
@@ -62,21 +63,27 @@ def get_now():
 def get_events():
     raw = None
     events_timestamp = 0
-    if os.path.exists(EVENTS_PATH):
-        events_timestamp = os.path.getmtime(EVENTS_PATH)
-        logging.debug(events_timestamp)
-    with events_lock:
-        if time.time() - events_timestamp <= EVENTS_FILE_EXPIRATION:
-            logging.debug(f"Loading cached {EVENTS_PATH}")
-            with open(EVENTS_PATH, encoding="utf-8") as f:
-                raw = f.read()
-        else:
-            logging.debug(f"Making request to {URL}")
-            with urllib.request.urlopen(URL) as f:
-                raw = f.read().decode("utf-8")
-                with open(EVENTS_PATH, "w", encoding="utf-8") as output_file:
-                    output_file.write(raw)
-                events_timestamp = os.path.getmtime(EVENTS_PATH)
+
+    from_environ = os.environ.get("EVENTS_PATH")
+    if from_environ:
+        with open(from_environ, encoding="utf-8") as f:
+            raw = f.read()
+    else:
+        if os.path.exists(EVENTS_PATH):
+            events_timestamp = os.path.getmtime(EVENTS_PATH)
+            logging.debug(events_timestamp)
+        with events_lock:
+            if time.time() - events_timestamp <= EVENTS_FILE_EXPIRATION:
+                logging.debug(f"Loading cached {EVENTS_PATH}")
+                with open(EVENTS_PATH, encoding="utf-8") as f:
+                    raw = f.read()
+            else:
+                logging.debug(f"Making request to {URL}")
+                with urllib.request.urlopen(URL) as f:
+                    raw = f.read().decode("utf-8")
+                    with open(EVENTS_PATH, "w", encoding="utf-8") as output_file:
+                        output_file.write(raw)
+                    events_timestamp = os.path.getmtime(EVENTS_PATH)
     events = json.loads(raw)
     return (events, events_timestamp)
 
@@ -95,7 +102,8 @@ def prettify_datetime(dt):
 
 def get_neighborhood_for_event(event):
     """
-    find the midpoint in a geometry ring and use that to determine neighborhood
+    find the midpoint in a geometry ring and use that to determine neighborhood,
+    using the indexes available to us
     """
     rings = get_rings([event])
     lat_min, lat_max, lon_min, lon_max = get_min_max(rings)
@@ -103,14 +111,12 @@ def get_neighborhood_for_event(event):
     lat_mid = lat_min + ((lat_max - lat_min) / 2)
     lon_mid = lon_min + ((lon_max - lon_min) / 2)
 
-    details = get_neighborhood_details(lat_mid, lon_mid)
-    if details:
-        s_hood = details.get("s_hood")
-        l_hood = details.get("l_hood")
-        if s_hood != l_hood:
-            return f"{s_hood} ({l_hood})"
-        else:
-            return s_hood
+    neighborhood = get_neighborhood_index().find_neighborhood(lat_mid, lon_mid)
+    if neighborhood:
+        return neighborhood.name
+
+    logging.warning(f"Could not find a neighborhood name for ({lat_mid}, {lon_mid})")
+
     return event["city"]
 
 
@@ -171,6 +177,6 @@ def event_region(event_ids_str: str):
     image_path = Path(os.getcwd()) / output_dir / map_filename(filtered_events)
 
     if not image_path.exists():
-        generate_map(filtered_events, image_path, None, 0.4, True)
+        generate_map(filtered_events, image_path, None, 0.35, True)
 
     return send_file(image_path, mimetype="image/png")

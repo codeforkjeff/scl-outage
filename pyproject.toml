@@ -12,6 +12,8 @@ dependencies = [
     "pillow==12.1.1",
     "matplotlib==3.10.8",
     "shapely==2.1.2",
+    "pyogrio==0.13.0",
+    "pyproj==3.8.0",
 ]
 
 [dependency-groups]

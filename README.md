@@ -22,6 +22,21 @@ Load http://localhost:9000
 # Local Development
 
 ```sh
-uv sync
 DEV=1 uv run gunicorn --reload scl_outage
+
+# use a sample events file
+DEV=1 EVENTS_PATH=sample_events/events-multiple-areas.json uv run gunicorn --reload scl_outage
+
+# run tests
+uv run --dev pytest
+```
+
+# Neighborhood Data Sources
+
+There are GeoJSON files committed into this repo containing neighborhood information for Seattle
+and the surrounding cities that Seattle City Light services. Some of these have been created
+from source data in a different format. To recreate the GeoJSON files:
+
+```sh
+uv run python3 -m scl_outage.neighborhoods.tool load
 ```
