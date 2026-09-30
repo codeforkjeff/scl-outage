@@ -41,3 +41,9 @@ from source data in a different format. To recreate the GeoJSON files:
 ```sh
 uv run python3 -m scl_outage.neighborhoods.tool load
 ```
+
+To generate a single map image showing which neighborhoods we have coverage for:
+
+```sh
+uv run python3 -m scl_outage.neighborhoods.tool coverage
+```

@@ -6,6 +6,12 @@ import argparse
 import urllib.request
 from pathlib import Path
 
+from ..maps import (
+    DEFAULT_PADDING,
+    check_network,
+    generate_map_from_rings,
+    get_geojson_rings,
+)
 from .all import get_data_sources, get_neighborhood_index
 
 
@@ -30,6 +36,36 @@ def load():
                     data_source.convert_fn()
 
 
+def coverage(
+    output_path: Path | str = Path("coverage.png"),
+) -> Path:
+    target_path = Path(output_path)
+    if target_path.is_dir():
+        target_path = target_path / "coverage.png"
+
+    neighborhoods_dir = Path(__file__).resolve().parent
+    geojson_files = sorted(neighborhoods_dir.glob("*.geojson"))
+    if not geojson_files:
+        raise FileNotFoundError(f"No .geojson files found in {neighborhoods_dir}")
+
+    rings = []
+    for geojson_file in geojson_files:
+        rings.extend(get_geojson_rings(geojson_file))
+
+    if not rings:
+        raise ValueError(f"No polygon rings found in {geojson_files}")
+
+    generate_map_from_rings(
+        rings=rings,
+        output_path=target_path,
+        zoom_override=13,
+        padding_miles=0.2,
+        event={"title": "Neighborhood Coverage"},
+    )
+    print(f"Coverage map saved to {target_path}")
+    return target_path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Tool for working with neighborhood data"
@@ -41,9 +77,16 @@ def main() -> None:
         help="coordinates (lat,lng) to lookup neighborhood for",
     )
     parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=Path("coverage.png"),
+        help="output image path for coverage command (default: coverage.png)",
+    )
+    parser.add_argument(
         "command",
         type=str,
-        help="command: load, lookup",
+        help="command: load, lookup, coverage",
     )
 
     args = parser.parse_args()
@@ -61,6 +104,11 @@ def main() -> None:
             print(neighborhood.name)
         else:
             print(f"no neighborhood found for that coordinate")
+
+    elif args.command == "coverage":
+        coverage(
+            output_path=args.output,
+        )
 
 
 if __name__ == "__main__":

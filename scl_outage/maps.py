@@ -182,7 +182,7 @@ def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
     return comp.convert("RGB")
 
 
-def mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event: dict):
+def mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event: dict | None = None):
     """Render a clean cartographic-style map with matplotlib (no tile download)."""
 
     lon_span = lon_max - lon_min
@@ -246,14 +246,15 @@ def mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event: dict):
     ax.set_ylabel("Latitude", fontsize=7, color="#555")
     ax.tick_params(axis="both", labelsize=6, colors="#555")
 
-    city = event.get("city", "")
-    state = event.get("state", "")
-    title_str = event.get("title", "Region")
-    eid = event.get("identifier", event.get("id", ""))
-    people = event.get("numPeople", "")
-    status = event.get("status", "")
+    event_dict = event or {}
+    city = event_dict.get("city", "")
+    state = event_dict.get("state", "")
+    title_str = event_dict.get("title", "Region")
+    eid = event_dict.get("identifier", event_dict.get("id", ""))
+    people = event_dict.get("numPeople", "")
+    status = event_dict.get("status", "")
 
-    header = f"{title_str}  #{eid}"
+    header = f"{title_str}  #{eid}" if eid else title_str
     if people:
         header += (
             f"  \u00b7  {people:,} affected"
@@ -264,7 +265,8 @@ def mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event: dict):
         header += f"  \u00b7  {status}"
     sub = f"{city}{', ' if city and state else ''}{state}"
 
-    ax.set_title(header, fontsize=9, fontweight="bold", color="#222", pad=6)
+    if header:
+        ax.set_title(header, fontsize=9, fontweight="bold", color="#222", pad=6)
     if sub:
         ax.text(
             0.5,
@@ -304,6 +306,29 @@ def get_rings(events):
     return rings
 
 
+def get_geojson_rings(geojson_source: dict | Path | str) -> list:
+    """Extract polygon coordinate rings from GeoJSON (dict, file path, or string path)."""
+    if isinstance(geojson_source, (str, Path)):
+        with open(geojson_source, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        data = geojson_source
+
+    rings = []
+    for feature in data.get("features", []):
+        geom = feature.get("geometry")
+        if not geom:
+            continue
+        gtype = geom.get("type")
+        coords = geom.get("coordinates", [])
+        if gtype == "Polygon":
+            rings.extend(coords)
+        elif gtype == "MultiPolygon":
+            for poly in coords:
+                rings.extend(poly)
+    return rings
+
+
 def get_min_max(rings):
     """Returns min and max lat and lon values in a set of events"""
     if not rings:
@@ -325,14 +350,14 @@ def get_min_max(rings):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def generate_map(
-    events: List[dict],
+def generate_map_from_rings(
+    rings: List,
     output_path: Path,
-    zoom_override,
-    padding_miles: float,
-    use_osm: bool,
+    zoom_override=None,
+    padding_miles: float = DEFAULT_PADDING,
+    use_osm: bool = True,
+    event: dict | None = None,
 ):
-    rings = get_rings(events)
     e_lat_min, e_lat_max, e_lon_min, e_lon_max = get_min_max(rings)
 
     lat_min, lat_max, lon_min, lon_max = pad_bbox(
@@ -346,8 +371,27 @@ def generate_map(
     else:
         img = mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event)
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     img.save(output_path, "PNG", optimize=True)
     return output_path
+
+
+def generate_map(
+    events: List[dict],
+    output_path: Path,
+    zoom_override,
+    padding_miles: float,
+    use_osm: bool,
+):
+    rings = get_rings(events)
+    return generate_map_from_rings(
+        rings,
+        output_path,
+        zoom_override=zoom_override,
+        padding_miles=padding_miles,
+        use_osm=use_osm,
+        event=events[0] if events else None,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
