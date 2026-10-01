@@ -340,7 +340,7 @@
       </p>
 
       <p>
-        As of {{pretty_date(events_date)}}, there are {{ total_outage_count }} outages affecting {{ total_people_affected }} people.
+        As of {{pretty_date(events_date)}} {{ date_only(now) }}, there are {{ total_outage_count }} outages affecting {{ total_people_affected }} people.
         Data is refreshed every {{ events_file_expiration }} mins.
       </p>
     </header>

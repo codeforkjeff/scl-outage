@@ -56,7 +56,12 @@ def utility_processor():
         else:
             return dt or "-"
 
-    return dict(pretty_date=pretty_date)
+    def date_only(dt):
+        """show just the date portion"""
+        date = dt.strftime("%m/%d")
+        return re.sub(r"^0", "", date)
+
+    return dict(pretty_date=pretty_date, date_only=date_only)
 
 
 @cached(cache=TTLCache(maxsize=1024, ttl=2))
