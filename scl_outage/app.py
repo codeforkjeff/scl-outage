@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 from cachetools import cached, TTLCache
 from filelock import FileLock
-from flask import Flask, make_response, render_template, send_file
+from flask import abort, Flask, make_response, render_template, send_file
 
 from .maps import generate_map, get_min_max, get_rings, map_filename
 from .neighborhoods.all import get_neighborhood_index
@@ -168,8 +168,8 @@ def index():
     return response
 
 
-@app.route("/event_region/<event_ids_str>")
-def event_region(event_ids_str: str):
+@app.route("/events_map/<event_ids_str>")
+def events_map(event_ids_str: str):
     events, _ = get_events()
 
     event_ids = sorted([int(e_id.strip()) for e_id in event_ids_str.split(",")])
@@ -177,6 +177,11 @@ def event_region(event_ids_str: str):
     # note we use 'identifier' which is the publicly visible ID on the frontend,
     # and not the 'id' field
     filtered_events = [e for e in events if int(e["identifier"]) in event_ids]
+
+    if len(filtered_events) != len(event_ids):
+        non_existent = set(event_ids) - set([e["identifier"] for e in filtered_events])
+        abort(404, description=f"Non existent event ids: {non_existent}")
+
     output_dir = Path(os.getcwd()) / Path("maps")
     image_path = Path(os.getcwd()) / output_dir / map_filename(filtered_events)
 
