@@ -21,6 +21,7 @@ def get_tukwila_neighborhoods():
 # https://tukwila-open-data-tuk.hub.arcgis.com/maps/9d37eee223f940aabbb8bdc140fc691a
 
 datasource = DataSource(
+    "tukwila",
     None,
     None,
     GEOJSON_PATH,

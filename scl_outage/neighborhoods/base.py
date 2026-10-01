@@ -25,6 +25,7 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class DataSource:
+    name: str
     url: str | None
     datasource_path: Path | None
     geojson_path: Path | None

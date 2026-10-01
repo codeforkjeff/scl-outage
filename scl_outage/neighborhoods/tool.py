@@ -16,7 +16,7 @@ from ..maps import (
     geojson_geometry_to_rings,
     get_geojson_rings,
 )
-from .all import get_data_sources, get_neighborhood_index
+from .all import create_neighborhood_index, get_data_sources, get_neighborhood_index
 
 
 def load():
@@ -107,6 +107,13 @@ def main() -> None:
         help="output image path for coverage command (default: coverage.png)",
     )
     parser.add_argument(
+        "--indexes",
+        "-i",
+        type=str,
+        default=None,
+        help="comma-separated neighborhood indexes to use for lookup (default: all)",
+    )
+    parser.add_argument(
         "command",
         type=str,
         help="command: load, lookup, coverage",
@@ -122,7 +129,13 @@ def main() -> None:
             parser.error("Specify -c and provide lat,lng")
 
         (lat, lng) = [float(c) for c in args.coordinates.split(",")]
-        neighborhood = get_neighborhood_index().find_neighborhood(lat, lng)
+
+        if args.indexes:
+            index = create_neighborhood_index(get_data_sources())
+        else:
+            index = get_neighborhood_index()
+
+        neighborhood = index.find_neighborhood(lat, lng)
         if neighborhood:
             print(neighborhood.name)
         else:

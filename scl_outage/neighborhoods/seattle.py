@@ -23,4 +23,6 @@ def get_seattle_neighborhoods():
 # so we skip it here.
 # https://data-seattlecitygis.opendata.arcgis.com/datasets/SeattleCityGIS::neighborhood-map-atlas-neighborhoods
 
-datasource = DataSource(None, None, GEOJSON_PATH, None, get_seattle_neighborhoods)
+datasource = DataSource(
+    "seattle", None, None, GEOJSON_PATH, None, get_seattle_neighborhoods
+)

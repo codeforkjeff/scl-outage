@@ -26,6 +26,7 @@ def get_renton_neighborhoods():
 
 
 datasource = DataSource(
+    "renton",
     "https://gismaps.rentonwa.gov/GISIMAGES/TEMPDOWNLOAD/zipfiles/CommunityAndCultureGDB.zip",
     GDB_PATH,
     GEOJSON_PATH,

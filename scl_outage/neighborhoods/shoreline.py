@@ -28,6 +28,7 @@ def get_shoreline_neighborhoods():
 
 
 datasource = DataSource(
+    "shoreline",
     "https://cosweb.shorelinewa.gov/uploads/attachments/gis/data/download_page/land.gdb.zip",
     GDB_PATH,
     GEOJSON_PATH,
