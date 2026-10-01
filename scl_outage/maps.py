@@ -308,7 +308,8 @@ def get_rings(events):
 
 def geojson_geometry_to_rings(geom: dict):
     """
-    geom = the "geometry" property of a feature in a geojson file
+    Transforms the "geometry" property of a feature in a geojson file
+    into "rings" format found in SCL events
     """
     rings = []
     if not geom:
