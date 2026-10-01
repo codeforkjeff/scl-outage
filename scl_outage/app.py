@@ -98,11 +98,6 @@ def timestamp_to_datetime(ts, input_type="milliseconds"):
     return datetime.datetime.fromtimestamp(_ts).astimezone(tz=TIMEZONE)
 
 
-def prettify_datetime(dt):
-    s = str(dt)
-    return s[: s.index(".")]
-
-
 def get_neighborhood_for_event(event):
     """
     find the midpoint in a geometry ring and use that to determine neighborhood,
