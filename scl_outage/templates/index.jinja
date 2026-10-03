@@ -375,8 +375,9 @@
       </p>
 
       <p>
-        As of {{pretty_date(events_date)}} {{ date_only(now) }}, there are {{ total_outage_count }} outages affecting {{ total_people_affected }} people.
-        Data is refreshed every {{ events_file_expiration }} mins.
+        There are currently {{ total_outage_count }} outages affecting {{ total_people_affected }} people.
+        Data is refreshed every {{ events_file_expiration }} mins, last checked at
+        {{ pretty_datetime(now, False) }}.
       </p>
     </header>
 
@@ -390,18 +391,18 @@
           </div>
           <div class="event-meta">
             <span class="meta-city">{{ e.neighborhood }}</span>
-            <span class="meta-updated">Updated: {{ pretty_date(e.lastUpdatedTime) }}</span>
+            <span class="meta-updated">Updated: {{ pretty_datetime(e.lastUpdatedTime) }}</span>
           </div>
         </header>
 
         <dl class="details-grid">
           <div class="detail-row">
             <dt class="detail-label">Start</dt>
-            <dd class="detail-value">{{ pretty_date(e.startTime) }}</dd>
+            <dd class="detail-value">{{ pretty_datetime(e.startTime) }}</dd>
           </div>
           <div class="detail-row">
             <dt class="detail-label">Est Restoration</dt>
-            <dd class="detail-value">{{ pretty_date(e.etrTime) }}</dd>
+            <dd class="detail-value">{{ pretty_datetime(e.etrTime) }}</dd>
           </div>
           <div class="detail-row">
             <dt class="detail-label">Cause</dt>

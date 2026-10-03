@@ -46,22 +46,23 @@ def utility_processor():
         return re.sub(r"^0", "", s)
 
     def pretty_date(dt):
+        return "/".join([re.sub(r"^0", "", dt.strftime(part)) for part in ["%m", "%d"]])
+
+    def pretty_datetime(dt, hide_date_if_today=True):
         """show just time portion if date is today's date"""
         now = get_now()
         if isinstance(dt, datetime.datetime):
-            if now.strftime("%Y/%m/%d") == dt.strftime("%Y/%m/%d"):
+            if hide_date_if_today and now.strftime("%Y/%m/%d") == dt.strftime(
+                "%Y/%m/%d"
+            ):
                 return pretty_time(dt)
-            s = dt.strftime("%m/%d ") + pretty_time(dt)
-            return re.sub(r"^0", "", s)
+            return pretty_date(dt) + " " + pretty_time(dt)
         else:
             return dt or "-"
 
-    def date_only(dt):
-        """show just the date portion"""
-        date = dt.strftime("%m/%d")
-        return re.sub(r"^0", "", date)
-
-    return dict(pretty_date=pretty_date, date_only=date_only)
+    return dict(
+        pretty_datetime=pretty_datetime,
+    )
 
 
 @cached(cache=TTLCache(maxsize=1024, ttl=2))
