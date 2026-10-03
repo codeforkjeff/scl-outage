@@ -40,6 +40,13 @@ class Neighborhood:
     source: str | None
 
 
+@dataclass
+class Match:
+    neighborhood: Neighborhood
+    match_type: str
+    distance: float | int | None = None
+
+
 class NeighborhoodIndex:
     """Spatial index of neighborhoods using Shapely's STRtree."""
 
@@ -48,7 +55,7 @@ class NeighborhoodIndex:
         self.neighborhoods = neighborhoods
         self.tree = STRtree(self.geometries)
 
-    def find_neighborhood(self, lat: float, lng: float) -> Neighborhood | None:
+    def find_neighborhood(self, lat: float, lng: float) -> Match | None:
         """Return full details dictionary for the neighborhood at coordinates, or None."""
         if lat is None or lng is None:
             return None
@@ -56,6 +63,22 @@ class NeighborhoodIndex:
         point = Point(lng, lat)
         matches = self.tree.query(point, predicate="intersects")
         if len(matches) == 0:
+            log.debug(f"Trying nearest matches for {lat, lng}")
+            # 0.0006 is about 200 ft, I think
+            hood_indices, distances = self.tree.query_nearest(
+                point, exclusive=False, max_distance=0.0006, return_distance=True
+            )
+            if len(hood_indices) > 0:
+                _neighborhood_matches = [
+                    Match(self.neighborhoods[hood_i], "nearest", distance=distances[i])
+                    for (i, hood_i) in enumerate(hood_indices)
+                ]
+                neighborhood_matches = sorted(
+                    _neighborhood_matches,
+                    key=lambda m: 1 if m.neighborhood.source == "wa" else 0,
+                )
+                log.debug(f"Nearest matches for {lat, lng}: {neighborhood_matches}")
+                return neighborhood_matches[0]
             return None
         if len(matches) > 1:
             # de-prioritize source=="wa"
@@ -66,9 +89,9 @@ class NeighborhoodIndex:
             log.warning(
                 f"More than more match found for {lat}, {lng}: {neighborhood_matches}"
             )
-            return neighborhood_matches[0]
+            return Match(neighborhood_matches[0], "exact")
 
-        return self.neighborhoods[matches[0]]
+        return Match(self.neighborhoods[matches[0]], "exact")
 
 
 def create_neighborhood(

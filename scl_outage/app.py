@@ -103,7 +103,7 @@ def timestamp_to_datetime(ts, input_type="milliseconds"):
     return datetime.datetime.fromtimestamp(_ts).astimezone(tz=TIMEZONE)
 
 
-def get_neighborhood_for_event(event):
+def get_neighborhood_for_event(event) -> str:
     """
     find the midpoint in a geometry ring and use that to determine neighborhood,
     using the indexes available to us
@@ -114,9 +114,9 @@ def get_neighborhood_for_event(event):
     lat_mid = lat_min + ((lat_max - lat_min) / 2)
     lon_mid = lon_min + ((lon_max - lon_min) / 2)
 
-    neighborhood = get_neighborhood_index().find_neighborhood(lat_mid, lon_mid)
-    if neighborhood:
-        return neighborhood.name
+    match = get_neighborhood_index().find_neighborhood(lat_mid, lon_mid)
+    if match:
+        return match.neighborhood.name
 
     log.warning(f"Could not find a neighborhood name for ({lat_mid}, {lon_mid})")
 

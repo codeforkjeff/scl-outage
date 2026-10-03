@@ -25,13 +25,14 @@ class TestNeighborhoods(unittest.TestCase):
 
         for lat, lng, expected_s_hood, expected_l_hood in test_cases:
             with self.subTest(lat=lat, lng=lng, s_hood=expected_s_hood):
-                neighborhood = neighborhood_index.find_neighborhood(lat, lng)
+                match = neighborhood_index.find_neighborhood(lat, lng)
                 expected = (
                     f"{expected_s_hood} ({expected_l_hood})"
                     if expected_s_hood != expected_l_hood
                     else expected_s_hood
                 )
-                self.assertEqual(neighborhood.name, expected)
+                self.assertEqual(match.neighborhood.name, expected)
+                self.assertEqual(match.match_type, "exact")
 
     def test_outside_seattle_returns_none(self):
         outside_coords = [

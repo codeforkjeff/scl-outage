@@ -135,9 +135,9 @@ def main() -> None:
         else:
             index = get_neighborhood_index()
 
-        neighborhood = index.find_neighborhood(lat, lng)
-        if neighborhood:
-            print(neighborhood.name)
+        match = index.find_neighborhood(lat, lng)
+        if match:
+            print(match.neighborhood.name)
         else:
             print(f"no neighborhood found for that coordinate")
 

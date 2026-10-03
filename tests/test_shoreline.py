@@ -19,9 +19,10 @@ class TestShoreline(unittest.TestCase):
         neighborhood_index = NeighborhoodIndex(get_shoreline_neighborhoods())
         for lat, lng, name in inside_coords:
             with self.subTest(lat=lat, lng=lng, location=name):
-                neighborhood = neighborhood_index.find_neighborhood(lat, lng)
-                self.assertIsNotNone(neighborhood)
-                self.assertEqual(neighborhood.name, f"{name} (Shoreline)")
+                match = neighborhood_index.find_neighborhood(lat, lng)
+                self.assertIsNotNone(match.neighborhood)
+                self.assertEqual(match.neighborhood.name, f"{name} (Shoreline)")
+                self.assertEqual(match.match_type, "exact")
 
     def test_known_locations_outside_shoreline(self):
         outside_coords = [
@@ -35,7 +36,10 @@ class TestShoreline(unittest.TestCase):
         neighborhood_index = NeighborhoodIndex(get_shoreline_neighborhoods())
         for lat, lng, name in outside_coords:
             with self.subTest(lat=lat, lng=lng, location=name):
-                self.assertIsNone(neighborhood_index.find_neighborhood(lat, lng))
+                self.assertIsNone(
+                    neighborhood_index.find_neighborhood(lat, lng),
+                    f"failure for: {lat}, {lng}",
+                )
 
 
 if __name__ == "__main__":
