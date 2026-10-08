@@ -76,10 +76,12 @@ class NeighborhoodIndex:
                 ]
                 neighborhood_matches = sorted(
                     _neighborhood_matches,
-                    key=lambda m: m.neighborhood.source.priority,
-                    reverse=True,
+                    key=lambda m: m.distance,
                 )
-                log.debug(f"Nearest matches for {lat, lng}: {neighborhood_matches}")
+                if len(neighborhood_matches) > 1:
+                    log.warning(
+                        f"More than one nearest match found for {lat, lng}: {neighborhood_matches}"
+                    )
                 return neighborhood_matches[0]
             return None
         if len(matches) > 1:
@@ -90,7 +92,7 @@ class NeighborhoodIndex:
                 reverse=True,
             )
             log.warning(
-                f"More than more match found for {lat}, {lng}: {neighborhood_matches}"
+                f"More than more exact match found for {lat}, {lng}: {neighborhood_matches}"
             )
             return Match(neighborhood_matches[0], "exact")
 
