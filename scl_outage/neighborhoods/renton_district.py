@@ -24,9 +24,7 @@ def extract_name(props: dict):
 def get_renton_districts():
     # this is an odd dataset that seems to include all the cities in the surrounding area.
     # we just want Renton.
-    all_cities = load_neighborhoods_from_geojson(
-        GEOJSON_PATH, extract_name, source="renton_district"
-    )
+    all_cities = load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
     cities_to_keep = ["Renton"]
     return [c for c in all_cities if c.name in cities_to_keep]
 
@@ -38,4 +36,5 @@ datasource = DataSource(
     GEOJSON_PATH,
     convert,
     get_renton_districts,
+    50,
 )

@@ -24,7 +24,7 @@ def extract_name(props: dict):
 
 
 def get_shoreline_neighborhoods():
-    return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name)
+    return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
 
 
 datasource = DataSource(
@@ -34,4 +34,5 @@ datasource = DataSource(
     GEOJSON_PATH,
     convert,
     get_shoreline_neighborhoods,
+    100,
 )

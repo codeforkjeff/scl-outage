@@ -14,7 +14,7 @@ def extract_name(props: dict):
 
 
 def get_tukwila_neighborhoods():
-    return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name)
+    return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
 
 
 # GeoJSON file dynamically generatwed from here:
@@ -27,4 +27,5 @@ datasource = DataSource(
     GEOJSON_PATH,
     None,
     get_tukwila_neighborhoods,
+    100,
 )

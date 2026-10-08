@@ -31,13 +31,14 @@ class DataSource:
     geojson_path: Path | None
     convert_fn: Callable | None
     neighborhoods_fn: Callable
+    priority: int
 
 
 @dataclass
 class Neighborhood:
     name: str
     geometry: object
-    source: str | None
+    source: DataSource
 
 
 @dataclass
@@ -75,7 +76,8 @@ class NeighborhoodIndex:
                 ]
                 neighborhood_matches = sorted(
                     _neighborhood_matches,
-                    key=lambda m: 1 if m.neighborhood.source == "wa" else 0,
+                    key=lambda m: m.neighborhood.source.priority,
+                    reverse=True,
                 )
                 log.debug(f"Nearest matches for {lat, lng}: {neighborhood_matches}")
                 return neighborhood_matches[0]
@@ -84,7 +86,8 @@ class NeighborhoodIndex:
             # de-prioritize source=="wa"
             neighborhood_matches = sorted(
                 [self.neighborhoods[i] for i in matches],
-                key=lambda n: 1 if n.source == "wa" else 0,
+                key=lambda n: n.source.priority,
+                reverse=True,
             )
             log.warning(
                 f"More than more match found for {lat}, {lng}: {neighborhood_matches}"
@@ -95,7 +98,7 @@ class NeighborhoodIndex:
 
 
 def create_neighborhood(
-    feature: dict, extract_name: Callable, source: str | None
+    feature: dict, extract_name: Callable, source: DataSource
 ) -> Neighborhood:
     """
     Create a Neighborhood object out of a feature record found in a geojson file
@@ -107,7 +110,7 @@ def create_neighborhood(
 
 
 def load_neighborhoods_from_geojson(
-    geojson_path: Path | str, extract_name: Callable, source: str | None = None
+    geojson_path: Path | str, extract_name: Callable, source: DataSource
 ) -> List[Neighborhood]:
     """
     Read a geojson file and create Neighborhood objects out of it

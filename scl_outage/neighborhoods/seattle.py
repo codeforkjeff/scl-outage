@@ -16,7 +16,7 @@ def extract_name(props: dict):
 
 
 def get_seattle_neighborhoods():
-    return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name)
+    return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
 
 
 # Seattle data comes from a dynamically generated download link on this page,
@@ -24,5 +24,5 @@ def get_seattle_neighborhoods():
 # https://data-seattlecitygis.opendata.arcgis.com/datasets/SeattleCityGIS::neighborhood-map-atlas-neighborhoods
 
 datasource = DataSource(
-    "seattle", None, None, GEOJSON_PATH, None, get_seattle_neighborhoods
+    "seattle", None, None, GEOJSON_PATH, None, get_seattle_neighborhoods, 100
 )
