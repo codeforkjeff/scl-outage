@@ -91,6 +91,10 @@
       text-underline-offset: 2px;
     }
 
+    .no-events {
+      text-align: center;
+    }
+
     .events-list {
       display: flex;
       flex-direction: column;
@@ -323,6 +327,11 @@
       height: 1rem;
       fill: currentColor;
     }
+
+    .emoji {
+      font-family: Apple Color Emoji,Segoe UI Emoji, Noto Color Emoji ,Android Emoji,EmojiSymbols,EmojiOne Mozilla,Twemoji Mozilla,Segoe UI Symbol,Noto Color Emoji Compat,emoji;
+      font-size: 10vmin;
+    }
   </style>
   <script>
     const toggleMap = (srcElement, eventId) => {
@@ -381,6 +390,7 @@
       </p>
     </header>
 
+    {% if events|length > 0 %}
     <main class="events-list">
       {% for e in events %}
       <article class="event-card event-entry">
@@ -434,6 +444,13 @@
       </article>
       {% endfor %}
     </main>
+    {% else %}
+    <main>
+      <article class="no-events">
+        <span class="emoji">&#x1F389;&#x1F389;&#x1F389;</span>
+      </article>
+    </main>
+    {% endif %}
 
     <footer class="page-footer">
       <a href="https://github.com/codeforkjeff/scl-outage" class="github-link" target="_blank" rel="noopener noreferrer">
