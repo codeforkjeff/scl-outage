@@ -56,7 +56,7 @@ def utility_processor():
                 "%Y/%m/%d"
             ):
                 return pretty_time(dt)
-            return pretty_date(dt) + " " + pretty_time(dt)
+            return pretty_time(dt) + " on " + pretty_date(dt)
         else:
             return dt or "-"
 
