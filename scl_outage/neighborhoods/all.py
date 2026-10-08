@@ -7,7 +7,15 @@ from .base import DataSource, NeighborhoodIndex
 
 prefix = ".".join(__name__.split(".")[0:-1])
 
-modules = ["renton", "seattle", "shoreline", "tukwila", "wa", "wa_cdp"]
+modules = [
+    "renton",
+    "renton_district",
+    "seattle",
+    "shoreline",
+    "tukwila",
+    "wa",
+    "wa_cdp",
+]
 
 _data_sources = None
 
