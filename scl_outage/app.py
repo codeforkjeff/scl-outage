@@ -1,3 +1,4 @@
+from collections import defaultdict
 import copy
 import datetime
 import itertools
@@ -7,6 +8,7 @@ import os
 import re
 from pathlib import Path
 import time
+from typing import DefaultDict
 from zoneinfo import ZoneInfo
 
 import aiofiles
@@ -34,6 +36,8 @@ events_lock = AsyncFileLock(EVENTS_PATH_LOCK)
 
 log = logging.getLogger(__name__)
 
+day_suffixes = defaultdict(lambda: "th", {1: "st", 2: "nd", 3: "rd"})
+
 if os.getenv("DEV"):
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("scl_outage").setLevel(logging.DEBUG)
@@ -53,7 +57,10 @@ def utility_processor():
         return re.sub(r"^0", "", s)
 
     def pretty_date(dt):
-        return "/".join([re.sub(r"^0", "", dt.strftime(part)) for part in ["%m", "%d"]])
+        mon = dt.strftime("%b")
+        day = int(re.sub(r"^0", "", dt.strftime("%d")))
+        suffix = day_suffixes[day % 10]
+        return f"{mon} {day}{suffix}"
 
     def pretty_datetime(dt, hide_date_if_today=True):
         """show just time portion if date is today's date"""
@@ -63,7 +70,7 @@ def utility_processor():
                 "%Y/%m/%d"
             ):
                 return pretty_time(dt)
-            return pretty_time(dt) + " on " + pretty_date(dt)
+            return pretty_time(dt) + ", " + pretty_date(dt)
         else:
             return dt or "-"
 
@@ -212,4 +219,3 @@ async def events_map(event_ids_str: str):
         await generate_map(filtered_events, image_path, None, 0.35, True)
 
     return await send_file(image_path, mimetype="image/png")
-
