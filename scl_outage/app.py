@@ -7,12 +7,14 @@ import os
 import re
 from pathlib import Path
 import time
-import urllib.request
 from zoneinfo import ZoneInfo
 
+import aiofiles
+import aiofiles.os
 from cachetools import cached, TTLCache
-from filelock import FileLock
-from flask import abort, Flask, make_response, render_template, send_file
+from filelock import AsyncFileLock
+import httpx
+from quart import abort, make_response, Quart, render_template, send_file
 
 from .maps import generate_map, get_min_max, get_rings, map_filename
 from .neighborhoods.all import get_neighborhood_index
@@ -26,9 +28,9 @@ EVENTS_PATH = "events.json"
 EVENTS_PATH_LOCK = "events.json.lock"
 EVENTS_FILE_EXPIRATION = 2
 
-app = Flask(__name__)
+app = Quart(__name__)
 
-events_lock = FileLock(EVENTS_PATH_LOCK)
+events_lock = AsyncFileLock(EVENTS_PATH_LOCK)
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +39,11 @@ if os.getenv("DEV"):
     logging.getLogger("scl_outage").setLevel(logging.DEBUG)
 
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+
+
+@app.before_serving
+async def startup():
+    get_neighborhood_index()
 
 
 @app.context_processor
@@ -70,29 +77,42 @@ def get_now():
     return datetime.datetime.now(tz=TIMEZONE)
 
 
-def get_events():
+async def get_events():
     raw = None
     events_timestamp = 0
 
     from_environ = os.environ.get("EVENTS_PATH")
     if from_environ:
-        with open(from_environ, encoding="utf-8") as f:
-            raw = f.read()
+        async with aiofiles.open(from_environ, encoding="utf-8") as f:
+            raw = await f.read()
     else:
-        if os.path.exists(EVENTS_PATH):
-            events_timestamp = os.path.getmtime(EVENTS_PATH)
-        with events_lock:
-            if time.time() - events_timestamp <= (EVENTS_FILE_EXPIRATION * 60):
+        if await aiofiles.os.path.exists(EVENTS_PATH):
+            stat = await aiofiles.os.stat(EVENTS_PATH)
+            events_timestamp = stat.st_mtime
+        async with events_lock:
+            if await aiofiles.os.path.exists(EVENTS_PATH):
+                stat = await aiofiles.os.stat(EVENTS_PATH)
+                events_timestamp = stat.st_mtime
+
+            if (
+                time.time() - events_timestamp <= (EVENTS_FILE_EXPIRATION * 60)
+                and events_timestamp > 0
+            ):
                 log.debug(f"Loading cached {EVENTS_PATH}")
-                with open(EVENTS_PATH, encoding="utf-8") as f:
-                    raw = f.read()
+                async with aiofiles.open(EVENTS_PATH, encoding="utf-8") as f:
+                    raw = await f.read()
             else:
                 log.debug(f"Making request to {URL}")
-                with urllib.request.urlopen(URL) as f:
-                    raw = f.read().decode("utf-8")
-                    with open(EVENTS_PATH, "w", encoding="utf-8") as output_file:
-                        output_file.write(raw)
-                    events_timestamp = os.path.getmtime(EVENTS_PATH)
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(URL)
+                    resp.raise_for_status()
+                    raw = resp.text
+                async with aiofiles.open(
+                    EVENTS_PATH, "w", encoding="utf-8"
+                ) as output_file:
+                    await output_file.write(raw)
+                stat = await aiofiles.os.stat(EVENTS_PATH)
+                events_timestamp = stat.st_mtime
     events = json.loads(raw)
     return (events, events_timestamp)
 
@@ -125,8 +145,9 @@ def get_neighborhood_for_event(event) -> str:
 
 
 @app.route("/")
-def index():
-    events, events_timestamp = copy.deepcopy(get_events())
+async def index():
+    events_data, events_timestamp = await get_events()
+    events = copy.deepcopy(events_data)
 
     total_outage_count = 0
     total_people_affected = 0
@@ -159,7 +180,8 @@ def index():
         "total_people_affected": total_people_affected,
     }
 
-    response = make_response(render_template("index.jinja", **template_data))
+    rendered = await render_template("index.jinja", **template_data)
+    response = await make_response(rendered)
 
     # expire immediately
     response.headers["Expires"] = "0"
@@ -170,8 +192,8 @@ def index():
 
 
 @app.route("/events_map/<event_ids_str>")
-def events_map(event_ids_str: str):
-    events, _ = get_events()
+async def events_map(event_ids_str: str):
+    events, _ = await get_events()
 
     event_ids = sorted([int(e_id.strip()) for e_id in event_ids_str.split(",")])
 
@@ -183,10 +205,11 @@ def events_map(event_ids_str: str):
         non_existent = set(event_ids) - set([e["identifier"] for e in filtered_events])
         abort(404, description=f"Non existent event ids: {non_existent}")
 
-    output_dir = Path(os.getcwd()) / Path("maps")
-    image_path = Path(os.getcwd()) / output_dir / map_filename(filtered_events)
+    output_dir = Path("maps")
+    image_path = output_dir / map_filename(filtered_events)
 
-    if not image_path.exists():
-        generate_map(filtered_events, image_path, None, 0.35, True)
+    if not await aiofiles.os.path.exists(image_path):
+        await generate_map(filtered_events, image_path, None, 0.35, True)
 
-    return send_file(image_path, mimetype="image/png")
+    return await send_file(image_path, mimetype="image/png")
+

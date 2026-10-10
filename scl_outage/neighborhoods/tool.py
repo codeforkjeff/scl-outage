@@ -3,10 +3,13 @@ CLI for working with neighborhood data: namely, converting to geojson files
 from various original data sources, and sanity checking coordinates
 """
 import argparse
+import asyncio
 from itertools import chain
-import urllib.request
 from pathlib import Path
 
+import aiofiles
+import aiofiles.os
+import httpx
 from shapely.geometry import mapping
 
 from ..maps import (
@@ -19,28 +22,34 @@ from ..maps import (
 from .all import create_neighborhood_index, get_data_sources, get_neighborhood_index
 
 
-def load():
-    for data_source in get_data_sources():
-        if data_source.datasource_path:
-            if not data_source.datasource_path.exists():
-                print(
-                    f"Downloading from {data_source.url} to {data_source.datasource_path}"
-                )
-                urllib.request.urlretrieve(
-                    data_source.url, str(data_source.datasource_path)
-                )
+async def load():
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for data_source in get_data_sources():
+            if data_source.datasource_path:
+                if not await aiofiles.os.path.exists(data_source.datasource_path):
+                    print(
+                        f"Downloading from {data_source.url} to {data_source.datasource_path}"
+                    )
+                    resp = await client.get(data_source.url)
+                    resp.raise_for_status()
+                    async with aiofiles.open(data_source.datasource_path, "wb") as f:
+                        await f.write(resp.content)
 
-            if (
-                not data_source.geojson_path.exists()
-                or data_source.datasource_path.stat().st_mtime
-                >= data_source.geojson_path.stat().st_mtime
-            ):
-                print(f"Converting to {data_source.geojson_path}")
-                if data_source.convert_fn:
-                    data_source.convert_fn()
+                geojson_exists = await aiofiles.os.path.exists(data_source.geojson_path)
+                if not geojson_exists:
+                    should_convert = True
+                else:
+                    ds_stat = await aiofiles.os.stat(data_source.datasource_path)
+                    geo_stat = await aiofiles.os.stat(data_source.geojson_path)
+                    should_convert = ds_stat.st_mtime >= geo_stat.st_mtime
+
+                if should_convert:
+                    print(f"Converting to {data_source.geojson_path}")
+                    if data_source.convert_fn:
+                        data_source.convert_fn()
 
 
-def coverage(
+async def coverage(
     output_path: Path | str = Path("coverage.png"),
 ) -> Path:
     target_path = Path(output_path)
@@ -78,7 +87,7 @@ def coverage(
     # if not rings:
     #     raise ValueError(f"No polygon rings found in {geojson_files}")
 
-    generate_map_from_rings(
+    await generate_map_from_rings(
         rings=rings,
         output_path=target_path,
         zoom_override=13,
@@ -89,7 +98,7 @@ def coverage(
     return target_path
 
 
-def main() -> None:
+async def async_main() -> None:
     parser = argparse.ArgumentParser(
         description="Tool for working with neighborhood data"
     )
@@ -122,7 +131,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "load":
-        load()
+        await load()
 
     elif args.command == "lookup":
         if not args.coordinates:
@@ -139,12 +148,16 @@ def main() -> None:
         if match:
             print(match.neighborhood.name)
         else:
-            print(f"no neighborhood found for that coordinate")
+            print("no neighborhood found for that coordinate")
 
     elif args.command == "coverage":
-        coverage(
+        await coverage(
             output_path=args.output,
         )
+
+
+def main() -> None:
+    asyncio.run(async_main())
 
 
 if __name__ == "__main__":

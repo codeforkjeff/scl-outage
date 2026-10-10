@@ -23,10 +23,10 @@ Load http://localhost:9000
 # Local Development
 
 ```sh
-DEV=1 uv run gunicorn --reload scl_outage
+DEV=1 uv run hypercorn --reload scl_outage:app
 
 # use a sample events file
-DEV=1 EVENTS_PATH=sample_events/events-multiple-areas.json uv run gunicorn --reload scl_outage
+DEV=1 EVENTS_PATH=sample_events/events-multiple-areas.json uv run hypercorn --reload scl_outage:app
 
 # run tests
 uv run --dev pytest

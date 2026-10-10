@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
 import argparse
+import asyncio
 from hashlib import md5
 import io
 import json
@@ -10,10 +10,11 @@ import os.path
 import sys
 import time
 from typing import Iterable, List
-import urllib.error
-import urllib.request
 from pathlib import Path
 
+import aiofiles
+import aiofiles.os
+import httpx
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib
 import matplotlib.pyplot as plt
@@ -74,7 +75,9 @@ def cache_filename(params: Iterable):
     return "tile_" + key
 
 
-def fetch_tile(z: int, x: int, y: int):
+async def fetch_tile(
+    z: int, x: int, y: int, client: httpx.AsyncClient | None = None
+):
     """returns an Image object"""
     key = (z, x, y)
 
@@ -82,37 +85,48 @@ def fetch_tile(z: int, x: int, y: int):
 
     filename = cache_filename(key)
     path = os.path.join(CACHE_DIR, filename)
-    if os.path.exists(path):
-        with open(path, "rb") as f:
+    if await aiofiles.os.path.exists(path):
+        async with aiofiles.open(path, "rb") as f:
             log.debug("got cached tile")
-            data = f.read()
+            data = await f.read()
     else:
         url = OSM_URL.format(z=z, x=x, y=y)
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        for attempt in range(2):
-            try:
-                with urllib.request.urlopen(req, timeout=8) as r:
-                    data = r.read()
-                    with open(path, "wb") as f:
-                        f.write(data)
-                    break
-            except Exception:
-                if attempt == 0:
-                    time.sleep(0.5)
+        headers = {"User-Agent": USER_AGENT}
+        should_close = False
+        active_client = client
+        if active_client is None:
+            active_client = httpx.AsyncClient(headers=headers, timeout=8.0)
+            should_close = True
+        try:
+            for attempt in range(2):
+                try:
+                    resp = await active_client.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        data = resp.content
+                        await aiofiles.os.makedirs(CACHE_DIR, exist_ok=True)
+                        async with aiofiles.open(path, "wb") as f:
+                            await f.write(data)
+                        break
+                except Exception:
+                    if attempt == 0:
+                        await asyncio.sleep(0.5)
+        finally:
+            if should_close:
+                await active_client.aclose()
 
+    if data is None:
+        return None
     return Image.open(io.BytesIO(data)).convert("RGBA")
 
 
-def check_network() -> bool:
+async def check_network() -> bool:
     """Quick probe - returns True if OSM tiles are reachable."""
     try:
-        req = urllib.request.Request(
-            "https://tile.openstreetmap.org/0/0/0.png",
-            headers={"User-Agent": USER_AGENT},
-        )
-        with urllib.request.urlopen(req, timeout=5):
-            pass
-        return True
+        async with httpx.AsyncClient(
+            headers={"User-Agent": USER_AGENT}, timeout=5.0
+        ) as client:
+            resp = await client.get("https://tile.openstreetmap.org/0/0/0.png")
+            return resp.status_code == 200
     except Exception:
         return False
 
@@ -127,7 +141,7 @@ def map_filename(events: List):
     return f"region_{event_ids_str}_{hash}.png"
 
 
-def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
+async def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
     """Build an image from OSM tiles with the rings drawn on top."""
     fx_min, fy_max = deg2num(lat_min, lon_min, zoom)
     fx_max, fy_min = deg2num(lat_max, lon_max, zoom)
@@ -144,13 +158,27 @@ def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
         "RGBA", (cols * TILE_SIZE, rows * TILE_SIZE), (200, 200, 200, 255)
     )
 
-    fetched = 0
+    tile_requests = []
     for row, ty in enumerate(range(ty_min, ty_max + 1)):
         for col, tx in enumerate(range(tx_min, tx_max + 1)):
-            tile = fetch_tile(zoom, max(0, min(tx, max_t)), max(0, min(ty, max_t)))
-            if tile:
-                mosaic.paste(tile, (col * TILE_SIZE, row * TILE_SIZE))
-                fetched += 1
+            tile_x = max(0, min(tx, max_t))
+            tile_y = max(0, min(ty, max_t))
+            tile_requests.append((col, row, tile_x, tile_y))
+
+    async with httpx.AsyncClient(
+        headers={"User-Agent": USER_AGENT}, timeout=10.0
+    ) as client:
+        tasks = [
+            fetch_tile(zoom, tile_x, tile_y, client=client)
+            for _, _, tile_x, tile_y in tile_requests
+        ]
+        tiles = await asyncio.gather(*tasks)
+
+    fetched = 0
+    for (col, row, _, _), tile in zip(tile_requests, tiles):
+        if tile:
+            mosaic.paste(tile, (col * TILE_SIZE, row * TILE_SIZE))
+            fetched += 1
 
     if fetched == 0:
         raise RuntimeError("No tiles fetched")
@@ -324,11 +352,12 @@ def geojson_geometry_to_rings(geom: dict):
     return rings
 
 
-def get_geojson_rings(geojson_source: dict | Path | str) -> list:
+async def get_geojson_rings(geojson_source: dict | Path | str) -> list:
     """Extract polygon coordinate rings from GeoJSON (dict, file path, or string path)."""
     if isinstance(geojson_source, (str, Path)):
-        with open(geojson_source, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        async with aiofiles.open(geojson_source, "r", encoding="utf-8") as f:
+            content = await f.read()
+            data = json.loads(content)
     else:
         data = geojson_source
 
@@ -368,7 +397,7 @@ def get_min_max(rings):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def generate_map_from_rings(
+async def generate_map_from_rings(
     rings: List,
     output_path: Path,
     zoom_override=None,
@@ -377,6 +406,8 @@ def generate_map_from_rings(
     event: dict | None = None,
 ):
     e_lat_min, e_lat_max, e_lon_min, e_lon_max = get_min_max(rings)
+    if e_lat_min is None:
+        return None
 
     lat_min, lat_max, lon_min, lon_max = pad_bbox(
         e_lat_min, e_lat_max, e_lon_min, e_lon_max, padding_miles
@@ -385,16 +416,18 @@ def generate_map_from_rings(
     zoom = zoom_override or choose_zoom(lat_max - lat_min, lon_max - lon_min)
 
     if use_osm:
-        img = osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom)
+        img = await osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom)
     else:
-        img = mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event)
+        img = await asyncio.to_thread(
+            mpl_render, rings, lat_min, lat_max, lon_min, lon_max, event
+        )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(output_path, "PNG", optimize=True)
+    await asyncio.to_thread(img.save, output_path, "PNG", optimize=True)
     return output_path
 
 
-def generate_map(
+async def generate_map(
     events: List[dict],
     output_path: Path,
     zoom_override,
@@ -402,7 +435,7 @@ def generate_map(
     use_osm: bool,
 ):
     rings = get_rings(events)
-    return generate_map_from_rings(
+    return await generate_map_from_rings(
         rings,
         output_path,
         zoom_override=zoom_override,
@@ -438,14 +471,15 @@ def parse_args():
     return p.parse_args()
 
 
-def main():
+async def async_main():
     args = parse_args()
 
     src = Path(args.input)
-    if not src.exists():
+    if not await aiofiles.os.path.exists(src):
         sys.exit(f"Input file not found: {src}")
-    with open(src) as f:
-        events = json.load(f)
+    async with aiofiles.open(src, "r", encoding="utf-8") as f:
+        content = await f.read()
+        events = json.loads(content)
 
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -455,7 +489,7 @@ def main():
         log.debug("Offline mode: using matplotlib renderer.")
     else:
         log.debug("Checking OSM tile server connectivity...")
-        use_osm = check_network()
+        use_osm = await check_network()
         log.debug(
             "OK - using OSM tiles."
             if use_osm
@@ -471,7 +505,7 @@ def main():
         log.debug(f"[{i+1:>3}/{len(events)}] #{label}  {city}")
         try:
             output_path = out_dir / map_filename([ev])
-            out = generate_map([ev], output_path, args.zoom, args.padding, use_osm)
+            out = await generate_map([ev], output_path, args.zoom, args.padding, use_osm)
             if out:
                 log.debug(f"ok  {out.name}")
                 ok += 1
@@ -480,9 +514,13 @@ def main():
         except Exception as e:
             log.error(f"ERROR  {e}")
         if use_osm:
-            time.sleep(0.15)  # be polite to the tile server
+            await asyncio.sleep(0.15)  # be polite to the tile server
 
     log.debug(f"Done - {ok}/{len(events)} maps saved to {out_dir}")
+
+
+def main():
+    asyncio.run(async_main())
 
 
 if __name__ == "__main__":
