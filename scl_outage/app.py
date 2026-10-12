@@ -37,6 +37,14 @@ events_lock = AsyncFileLock(EVENTS_PATH_LOCK)
 log = logging.getLogger(__name__)
 
 day_suffixes = defaultdict(lambda: "th", {1: "st", 2: "nd", 3: "rd"})
+special_suffixes = {11: "th", 12: "th", 13: "th"}
+
+
+def get_suffix(n: int):
+    mod_10 = n % 10
+    mod_100 = n % 100
+    return special_suffixes.get(mod_100, day_suffixes[mod_10])
+
 
 if os.getenv("DEV"):
     logging.basicConfig(level=logging.INFO)
@@ -59,7 +67,7 @@ def utility_processor():
     def pretty_date(dt):
         mon = dt.strftime("%b")
         day = int(re.sub(r"^0", "", dt.strftime("%d")))
-        suffix = day_suffixes[day % 10]
+        suffix = get_suffix(day)
         return f"{mon} {day}{suffix}"
 
     def pretty_datetime(dt, hide_date_if_today=True):
