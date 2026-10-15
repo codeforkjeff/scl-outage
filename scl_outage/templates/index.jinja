@@ -13,6 +13,7 @@
       --text-muted: #64748b;
       --border-color: #e2e8f0;
       --accent-color: #0284c7;
+      --accent-hover: #0369a1;
       --badge-bg: #fef2f2;
       --badge-color: #b91c1c;
       --badge-border: #fecaca;
@@ -35,6 +36,7 @@
         --text-muted: #94a3b8;
         --border-color: #334155;
         --accent-color: #38bdf8;
+        --accent-hover: #7dd3fc;
         --badge-bg: #450a0a;
         --badge-color: #fca5a5;
         --badge-border: #7f1d1d;
@@ -62,13 +64,12 @@
     }
 
     .container {
-      max-width: 840px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
     .page-header {
       margin-bottom: 1.5rem;
-      /*border-bottom: 1px solid var(--border-color);*/
     }
 
     h1 {
@@ -93,51 +94,110 @@
 
     .no-events {
       text-align: center;
+      padding: 3rem 1rem;
     }
 
     .events-list {
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
+      margin-top: 1rem;
     }
 
-    .event-card {
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 1rem 1.25rem;
     }
 
-    .event-header {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem 1rem;
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
+    .events-table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .events-table th,
+    .events-table td {
+      padding: 0.75rem 0.85rem;
       border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
     }
 
-    .event-title-group {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .event-title {
-      font-size: 1.2rem;
+    .events-table th {
+      background-color: var(--details-bg);
+      font-size: 0.75rem;
       font-weight: 600;
-      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .events-table tbody tr.event-row {
+      transition: background-color 0.15s ease;
+    }
+
+    .events-table tbody tr.event-row:hover {
+      background-color: var(--details-bg);
+    }
+
+    .events-table tbody tr.event-row.is-expanded {
+      background-color: var(--details-bg);
+    }
+
+    .col-neighborhood {
+      font-weight: 600;
       color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .col-title {
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .col-affected {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th.col-affected {
+      text-align: right;
+    }
+
+    .col-status {
+      white-space: nowrap;
+    }
+
+    .col-cause {
+      color: var(--text-main);
+    }
+
+    .col-start,
+    .col-etr,
+    .col-updated {
+      white-space: nowrap;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .col-map,
+    th.col-map {
+      text-align: center;
+      white-space: nowrap;
     }
 
     .badge-impact {
       display: inline-block;
-      font-weight: 500;
-      padding: 0.2rem 0.55rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 0.15rem 0.55rem;
       border-radius: 9999px;
       background-color: var(--badge-bg);
       color: var(--badge-color);
@@ -145,96 +205,37 @@
       white-space: nowrap;
     }
 
-    .event-meta {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--text-muted);
-    }
-
-    .meta-city {
+    .status-tag {
       display: inline-block;
       padding: 0.15rem 0.5rem;
       border-radius: 4px;
       background-color: var(--tag-bg);
       color: var(--tag-color);
+      font-size: 0.8rem;
       font-weight: 500;
     }
 
-    .meta-updated {
-      color: var(--text-muted);
-    }
-
-    .details-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 0.75rem 1.5rem;
-      margin: 0 0 1rem 0;
-      padding: 0.85rem 1rem;
-      background-color: var(--details-bg);
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-    }
-
-    .detail-row {
-      display: grid;
-      grid-template-columns: 130px 1fr;
-      align-items: baseline;
-      gap: 0.5rem;
-    }
-
-    .detail-label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin: 0;
-    }
-
-    .detail-value {
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: var(--text-main);
-      margin: 0;
-      word-break: break-word;
-    }
-
-    @media (max-width: 480px) {
-      .detail-row {
-        grid-template-columns: 1fr;
-        gap: 0.15rem;
-      }
-    }
-
-    .event-actions {
-      display: flex;
-      align-items: center;
-      margin-top: 0.75rem;
-    }
-
-    .btn-map {
+    .map-link {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0.4rem 0.85rem;
+      padding: 0.35rem 0.75rem;
       font-size: 0.85rem;
       font-weight: 600;
-      font-family: inherit;
-      color: var(--btn-color);
-      background-color: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: 6px;
+      color: var(--accent-color);
+      text-decoration: underline;
+      text-underline-offset: 2px;
       cursor: pointer;
-      transition: background-color 0.15s ease, border-color 0.15s ease;
+      border-radius: 4px;
+      transition: color 0.15s ease, background-color 0.15s ease;
     }
 
-    .btn-map:hover {
+    .map-link:hover {
+      color: var(--accent-hover);
       background-color: var(--btn-hover);
     }
 
-    .btn-map:focus-visible {
+    .map-link:focus-visible {
       outline: 2px solid var(--accent-color);
       outline-offset: 2px;
     }
@@ -243,10 +244,26 @@
       display: none !important;
     }
 
+    .events-table tr.map-row {
+      background-color: var(--details-bg);
+    }
+
+    .events-table tr.map-row td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
     .map-container {
-      margin-top: 0.75rem;
-      padding-top: 0.75rem;
-      border-top: 1px dashed var(--border-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: sticky;
+      left: 0;
+      width: 100%;
+      max-width: calc(100vw - 2.5rem);
+      margin: 0 auto;
+      min-height: 120px;
     }
 
     .map-loader {
@@ -257,7 +274,7 @@
       padding: 1.5rem 1rem;
       color: var(--text-muted);
       font-size: 0.9rem;
-      background-color: var(--details-bg);
+      background-color: var(--card-bg);
       border-radius: 6px;
       border: 1px solid var(--border-color);
     }
@@ -280,9 +297,12 @@
     .map-container img {
       display: block;
       max-width: 100%;
+      max-height: 520px;
+      width: auto;
       height: auto;
       border-radius: 6px;
       border: 1px solid var(--border-color);
+      box-shadow: var(--shadow);
     }
 
     .map-container img.is-loading {
@@ -332,17 +352,148 @@
       font-family: Apple Color Emoji,Segoe UI Emoji, Noto Color Emoji ,Android Emoji,EmojiSymbols,EmojiOne Mozilla,Twemoji Mozilla,Segoe UI Symbol,Noto Color Emoji Compat,emoji;
       font-size: 10vmin;
     }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem 0.5rem;
+      }
+
+      .page-header h1 {
+        font-size: 1.4rem;
+      }
+
+      .table-container {
+        overflow-x: visible;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+      }
+
+      .events-table {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        border: none;
+      }
+
+      .events-table thead {
+        display: none;
+      }
+
+      .events-table tbody {
+        display: block;
+        width: 100%;
+      }
+
+      .events-table tr.event-row {
+        display: block;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        margin-bottom: 1rem;
+        overflow: hidden;
+      }
+
+      .events-table tbody tr.event-row:hover {
+        background-color: var(--card-bg);
+      }
+
+      .events-table tbody tr.event-row.is-expanded {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        border-bottom: none;
+        margin-bottom: 0;
+        background-color: var(--card-bg);
+      }
+
+      .events-table tr.event-row td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 0.85rem;
+        border-bottom: 1px solid var(--border-color);
+        text-align: right;
+        font-size: 0.85rem;
+        white-space: normal;
+      }
+
+      .events-table tr.event-row td:last-child {
+        border-bottom: none;
+      }
+
+      .events-table tr.event-row td::before {
+        content: attr(data-label);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        text-align: left;
+        flex-shrink: 0;
+      }
+
+      .events-table td.col-neighborhood {
+        font-weight: 600;
+      }
+
+      .events-table td.col-affected,
+      .events-table td.col-status,
+      .events-table td.col-start,
+      .events-table td.col-etr,
+      .events-table td.col-updated,
+      .events-table td.col-map {
+        text-align: right;
+      }
+
+      .events-table tr.map-row {
+        display: block;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-top: 1px dashed var(--border-color);
+        border-bottom-left-radius: var(--radius);
+        border-bottom-right-radius: var(--radius);
+        box-shadow: var(--shadow);
+        margin-bottom: 1rem;
+      }
+
+      .events-table td.map-cell {
+        display: block;
+        padding: 0.75rem;
+        border-bottom: none;
+      }
+
+      .events-table td.map-cell::before {
+        display: none;
+      }
+
+      .map-container {
+        position: static;
+        width: 100%;
+        max-width: 100%;
+        min-height: 120px;
+      }
+    }
   </style>
   <script>
-    const toggleMap = (srcElement, eventId) => {
-      const container = document.getElementsByClassName(`map-container-${eventId}`)[0];
-      if (!container) return;
+    const toggleMap = (srcElement, eventId, event) => {
+      if (event) {
+        event.preventDefault();
+      }
+      const mapRow = document.getElementById(`map-row-${eventId}`);
+      if (!mapRow) return;
 
-      if (container.classList.contains('hidden')) {
-        container.classList.remove('hidden');
+      const isHidden = mapRow.classList.contains('hidden');
+      const eventRow = document.getElementById(`row-${eventId}`);
+
+      if (isHidden) {
+        mapRow.classList.remove('hidden');
+        if (eventRow) eventRow.classList.add('is-expanded');
         srcElement.textContent = "Hide Map";
+        srcElement.setAttribute('aria-expanded', 'true');
 
-        const img = container.querySelector('img');
+        const img = mapRow.querySelector('img');
         const loader = document.getElementById(`loader-${eventId}`);
 
         if (img && img.complete && img.naturalWidth > 0) {
@@ -353,8 +504,10 @@
           if (img) img.classList.add('is-loading');
         }
       } else {
-        container.classList.add('hidden');
+        mapRow.classList.add('hidden');
+        if (eventRow) eventRow.classList.remove('is-expanded');
         srcElement.textContent = "Show Map";
+        srcElement.setAttribute('aria-expanded', 'false');
       }
     };
 
@@ -392,57 +545,70 @@
 
     {% if events|length > 0 %}
     <main class="events-list">
-      {% for e in events %}
-      <article class="event-card event-entry">
-        <header class="event-header">
-          <div class="event-title-group">
-            <h2 class="event-title">{{ e.title }}</h2>
-            <span class="badge-impact">{{ e.numPeople }} affected</span>
-          </div>
-          <div class="event-meta">
-            <span class="meta-city">{{ e.neighborhood }}</span>
-            <span class="meta-updated">Updated: {{ pretty_datetime(e.lastUpdatedTime) }}</span>
-          </div>
-        </header>
-
-        <dl class="details-grid">
-          <div class="detail-row">
-            <dt class="detail-label">Start</dt>
-            <dd class="detail-value">{{ pretty_datetime(e.startTime) }}</dd>
-          </div>
-          <div class="detail-row">
-            <dt class="detail-label">Est Restoration</dt>
-            <dd class="detail-value">{{ pretty_datetime(e.etrTime) }}</dd>
-          </div>
-          <div class="detail-row">
-            <dt class="detail-label">Cause</dt>
-            <dd class="detail-value">{{ e.cause }}</dd>
-          </div>
-          <div class="detail-row">
-            <dt class="detail-label">Status</dt>
-            <dd class="detail-value">{{ e.status }}</dd>
-          </div>
-        </dl>
-
-        <div class="event-actions">
-          <button type="button" class="btn-map" onclick="toggleMap(this, {{ e.identifier }})">Show Map</button>
-        </div>
-        <div class="hidden map-container map-container-{{ e.identifier }}">
-          <div class="map-loader" id="loader-{{ e.identifier }}">
-            <span class="map-spinner" aria-hidden="true"></span>
-            <span class="loader-text">Loading map...</span>
-          </div>
-          <img
-            src="events_map/{{ e.identifier }}?ts={{ ts }}"
-            class="is-loading"
-            loading="lazy"
-            alt="map of affected area for event {{ e.identifier}}"
-            onload="handleMapLoad(this, {{ e.identifier }})"
-            onerror="handleMapError(this, {{ e.identifier }})"
-          >
-        </div>
-      </article>
-      {% endfor %}
+      <div class="table-container">
+        <table class="events-table" aria-label="Seattle City Light Outage Events">
+          <thead>
+            <tr>
+              <th scope="col" class="col-neighborhood">Neighborhood</th>
+              <th scope="col" class="col-title">Title</th>
+              <th scope="col" class="col-affected">Affected</th>
+              <th scope="col" class="col-status">Status</th>
+              <th scope="col" class="col-cause">Cause</th>
+              <th scope="col" class="col-start">Start</th>
+              <th scope="col" class="col-etr">Est Restoration</th>
+              <th scope="col" class="col-updated">Updated</th>
+              <th scope="col" class="col-map">Map</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in events %}
+            <tr class="event-row" id="row-{{ e.identifier }}">
+              <td class="col-neighborhood" data-label="Neighborhood">{{ e.neighborhood }}</td>
+              <td class="col-title" data-label="Title">{{ e.title }}</td>
+              <td class="col-affected" data-label="Affected">
+                <span class="badge-impact">{{ e.numPeople }}</span>
+              </td>
+              <td class="col-status" data-label="Status">
+                <span class="status-tag">{{ e.status }}</span>
+              </td>
+              <td class="col-cause" data-label="Cause">{{ e.cause }}</td>
+              <td class="col-start" data-label="Start">{{ pretty_datetime(e.startTime) }}</td>
+              <td class="col-etr" data-label="Est Restoration">{{ pretty_datetime(e.etrTime) }}</td>
+              <td class="col-updated" data-label="Updated">{{ pretty_datetime(e.lastUpdatedTime) }}</td>
+              <td class="col-map" data-label="Map">
+                <a
+                  href="events_map/{{ e.identifier }}?ts={{ ts }}"
+                  class="map-link"
+                  id="map-link-{{ e.identifier }}"
+                  role="button"
+                  aria-expanded="false"
+                  aria-controls="map-row-{{ e.identifier }}"
+                  onclick="toggleMap(this, '{{ e.identifier }}', event); return false;"
+                >Show Map</a>
+              </td>
+            </tr>
+            <tr class="map-row hidden" id="map-row-{{ e.identifier }}">
+              <td colspan="9" class="map-cell">
+                <div class="map-container map-container-{{ e.identifier }}">
+                  <div class="map-loader" id="loader-{{ e.identifier }}">
+                    <span class="map-spinner" aria-hidden="true"></span>
+                    <span class="loader-text">Loading map...</span>
+                  </div>
+                  <img
+                    src="events_map/{{ e.identifier }}?ts={{ ts }}"
+                    class="is-loading"
+                    loading="lazy"
+                    alt="Map of affected area for event {{ e.identifier }}"
+                    onload="handleMapLoad(this, '{{ e.identifier }}')"
+                    onerror="handleMapError(this, '{{ e.identifier }}')"
+                  >
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </main>
     {% else %}
     <main>
