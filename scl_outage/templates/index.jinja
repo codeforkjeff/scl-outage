@@ -101,6 +101,10 @@
       margin-top: 1rem;
     }
 
+    .table-controls {
+      display: none;
+    }
+
     .table-container {
       width: 100%;
       overflow-x: auto;
@@ -139,6 +143,44 @@
       z-index: 1;
     }
 
+    .events-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .events-table th.sortable:hover {
+      color: var(--text-main);
+    }
+
+    .events-table th.sortable:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -2px;
+    }
+
+    .events-table th.sortable.is-sorted {
+      color: var(--text-main);
+    }
+
+    .sort-icon {
+      display: inline-block;
+      margin-left: 0.25rem;
+      font-size: 0.65rem;
+      line-height: 1;
+      vertical-align: middle;
+      opacity: 0.3;
+      transition: opacity 0.15s ease, color 0.15s ease;
+    }
+
+    .events-table th.sortable:hover .sort-icon {
+      opacity: 0.65;
+    }
+
+    .events-table th.sortable.is-sorted .sort-icon {
+      opacity: 1;
+      color: var(--accent-color);
+    }
+
     .events-table tbody tr.event-row {
       transition: background-color 0.15s ease;
     }
@@ -154,7 +196,6 @@
     .col-neighborhood {
       font-weight: 600;
       color: var(--text-main);
-      white-space: nowrap;
     }
 
     .col-title {
@@ -362,6 +403,41 @@
         font-size: 1.4rem;
       }
 
+      .table-controls {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .sort-label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-muted);
+      }
+
+      .sort-select {
+        font-family: inherit;
+        font-size: 0.85rem;
+        color: var(--text-main);
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        padding: 0.35rem 0.65rem;
+        box-shadow: var(--shadow);
+        cursor: pointer;
+      }
+
+      .sort-select:focus-visible {
+        outline: 2px solid var(--accent-color);
+        outline-offset: 2px;
+      }
+
+      .sort-icon {
+        display: none;
+      }
+
       .table-container {
         overflow-x: visible;
         background: transparent;
@@ -526,6 +602,73 @@
         if (spinner) spinner.classList.add('hidden');
       }
     };
+
+    let currentSortCol = 2;
+    let currentSortDir = 'desc';
+
+    const handleHeaderSort = (colIndex, event) => {
+      if (event && event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      if (event) {
+        event.preventDefault();
+      }
+      const nextDir = currentSortCol === colIndex
+        ? (currentSortDir === 'asc' ? 'desc' : 'asc')
+        : 'asc';
+      sortTable(`${colIndex}-${nextDir}`);
+    };
+
+    const sortTable = (sortValue) => {
+      if (!sortValue) return;
+      const [colIdxStr, direction] = sortValue.split('-');
+      const colIndex = parseInt(colIdxStr, 10);
+      const isDesc = direction === 'desc';
+
+      currentSortCol = colIndex;
+      currentSortDir = direction;
+
+      const sortSelect = document.getElementById('sort-select');
+      if (sortSelect && sortSelect.value !== sortValue) {
+        sortSelect.value = sortValue;
+      }
+
+      const headers = document.querySelectorAll('.events-table th.sortable');
+      headers.forEach((th) => {
+        const thCol = parseInt(th.dataset.colIndex, 10);
+        const icon = th.querySelector('.sort-icon');
+        if (thCol === colIndex) {
+          th.classList.add('is-sorted');
+          th.setAttribute('aria-sort', isDesc ? 'descending' : 'ascending');
+          if (icon) icon.textContent = isDesc ? '\u25BC' : '\u25B2';
+        } else {
+          th.classList.remove('is-sorted');
+          th.setAttribute('aria-sort', 'none');
+          if (icon) icon.textContent = '\u25B2';
+        }
+      });
+
+      const tbody = document.querySelector('.events-table tbody');
+      if (!tbody) return;
+
+      const eventRows = Array.from(tbody.querySelectorAll('tr.event-row'));
+      const rowPairs = eventRows.map((row) => ({
+        eventRow: row,
+        mapRow: row.nextElementSibling,
+        sortVal: (row.cells[colIndex] && row.cells[colIndex].dataset.sortValue) || ''
+      }));
+
+      rowPairs.sort((a, b) => {
+        if (a.sortVal < b.sortVal) return isDesc ? 1 : -1;
+        if (a.sortVal > b.sortVal) return isDesc ? -1 : 1;
+        return 0;
+      });
+
+      rowPairs.forEach(({ eventRow, mapRow }) => {
+        tbody.appendChild(eventRow);
+        tbody.appendChild(mapRow);
+      });
+    };
   </script>
 </head>
 <body>
@@ -545,36 +688,57 @@
 
     {% if events|length > 0 %}
     <main class="events-list">
+      <div class="table-controls">
+        <label for="sort-select" class="sort-label">Sort by</label>
+        <select id="sort-select" class="sort-select" onchange="sortTable(this.value)">
+          <option value="0-asc">Neighborhood (Ascending)</option>
+          <option value="0-desc">Neighborhood (Descending)</option>
+          <option value="1-asc">Title (Ascending)</option>
+          <option value="1-desc">Title (Descending)</option>
+          <option value="2-asc">Affected (Ascending)</option>
+          <option value="2-desc" selected>Affected (Descending)</option>
+          <option value="3-asc">Status (Ascending)</option>
+          <option value="3-desc">Status (Descending)</option>
+          <option value="4-asc">Cause (Ascending)</option>
+          <option value="4-desc">Cause (Descending)</option>
+          <option value="5-asc">Start (Ascending)</option>
+          <option value="5-desc">Start (Descending)</option>
+          <option value="6-asc">Est Restoration (Ascending)</option>
+          <option value="6-desc">Est Restoration (Descending)</option>
+          <option value="7-asc">Updated (Ascending)</option>
+          <option value="7-desc">Updated (Descending)</option>
+        </select>
+      </div>
       <div class="table-container">
         <table class="events-table" aria-label="Seattle City Light Outage Events">
           <thead>
             <tr>
-              <th scope="col" class="col-neighborhood">Neighborhood</th>
-              <th scope="col" class="col-title">Title</th>
-              <th scope="col" class="col-affected">Affected</th>
-              <th scope="col" class="col-status">Status</th>
-              <th scope="col" class="col-cause">Cause</th>
-              <th scope="col" class="col-start">Start</th>
-              <th scope="col" class="col-etr">Est Restoration</th>
-              <th scope="col" class="col-updated">Updated</th>
+              <th scope="col" class="col-neighborhood sortable" data-col-index="0" role="button" tabindex="0" aria-sort="none" onclick="handleHeaderSort(0, event)" onkeydown="handleHeaderSort(0, event)">Neighborhood<span class="sort-icon" aria-hidden="true">&#9650;</span></th>
+              <th scope="col" class="col-title sortable" data-col-index="1" role="button" tabindex="0" aria-sort="none" onclick="handleHeaderSort(1, event)" onkeydown="handleHeaderSort(1, event)">Title<span class="sort-icon" aria-hidden="true">&#9650;</span></th>
+              <th scope="col" class="col-affected sortable is-sorted" data-col-index="2" role="button" tabindex="0" aria-sort="descending" onclick="handleHeaderSort(2, event)" onkeydown="handleHeaderSort(2, event)">Affected<span class="sort-icon" aria-hidden="true">&#9660;</span></th>
+              <th scope="col" class="col-status sortable" data-col-index="3" role="button" tabindex="0" aria-sort="none" onclick="handleHeaderSort(3, event)" onkeydown="handleHeaderSort(3, event)">Status<span class="sort-icon" aria-hidden="true">&#9650;</span></th>
+              <th scope="col" class="col-cause sortable" data-col-index="4" role="button" tabindex="0" aria-sort="none" onclick="handleHeaderSort(4, event)" onkeydown="handleHeaderSort(4, event)">Cause<span class="sort-icon" aria-hidden="true">&#9650;</span></th>
+              <th scope="col" class="col-start sortable" data-col-index="5" role="button" tabindex="0" aria-sort="none" onclick="handleHeaderSort(5, event)" onkeydown="handleHeaderSort(5, event)">Start<span class="sort-icon" aria-hidden="true">&#9650;</span></th>
+              <th scope="col" class="col-etr sortable" data-col-index="6" role="button" tabindex="0" aria-sort="none" onclick="handleHeaderSort(6, event)" onkeydown="handleHeaderSort(6, event)">Est Restoration<span class="sort-icon" aria-hidden="true">&#9650;</span></th>
+              <th scope="col" class="col-updated sortable" data-col-index="7" role="button" tabindex="0" aria-sort="none" onclick="handleHeaderSort(7, event)" onkeydown="handleHeaderSort(7, event)">Updated<span class="sort-icon" aria-hidden="true">&#9650;</span></th>
               <th scope="col" class="col-map">Map</th>
             </tr>
           </thead>
           <tbody>
             {% for e in events %}
             <tr class="event-row" id="row-{{ e.identifier }}">
-              <td class="col-neighborhood" data-label="Neighborhood">{{ e.neighborhood }}</td>
-              <td class="col-title" data-label="Title">{{ e.title }}</td>
-              <td class="col-affected" data-label="Affected">
+              <td class="col-neighborhood" data-label="Neighborhood" data-sort-value="{{ neighborhood_sortable(e.neighborhood) }}">{{ e.neighborhood }}</td>
+              <td class="col-title" data-label="Title" data-sort-value="{{ e.title | lower }}">{{ e.title }}</td>
+              <td class="col-affected" data-label="Affected" data-sort-value="{{ '%010d' | format(e.numPeople) }}">
                 <span class="badge-impact">{{ e.numPeople }}</span>
               </td>
-              <td class="col-status" data-label="Status">
+              <td class="col-status" data-label="Status" data-sort-value="{{ e.status | lower }}">
                 <span class="status-tag">{{ e.status }}</span>
               </td>
-              <td class="col-cause" data-label="Cause">{{ e.cause }}</td>
-              <td class="col-start" data-label="Start">{{ pretty_datetime(e.startTime) }}</td>
-              <td class="col-etr" data-label="Est Restoration">{{ pretty_datetime(e.etrTime) }}</td>
-              <td class="col-updated" data-label="Updated">{{ pretty_datetime(e.lastUpdatedTime) }}</td>
+              <td class="col-cause" data-label="Cause" data-sort-value="{{ e.cause | lower }}">{{ e.cause }}</td>
+              <td class="col-start" data-label="Start" data-sort-value="{{ e.startTime.isoformat() if e.startTime is not string else e.startTime }}">{{ pretty_datetime(e.startTime) }}</td>
+              <td class="col-etr" data-label="Est Restoration" data-sort-value="{{ e.etrTime.isoformat() if e.etrTime is not string else e.etrTime }}">{{ pretty_datetime(e.etrTime) }}</td>
+              <td class="col-updated" data-label="Updated" data-sort-value="{{ e.lastUpdatedTime.isoformat() if e.lastUpdatedTime is not string else e.lastUpdatedTime }}">{{ pretty_datetime(e.lastUpdatedTime) }}</td>
               <td class="col-map" data-label="Map">
                 <a
                   href="events_map/{{ e.identifier }}?ts={{ ts }}"

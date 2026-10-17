@@ -82,7 +82,15 @@ def utility_processor():
         else:
             return dt or "-"
 
+    def neighborhood_sortable(s):
+        """sorts by the parenthesized value in neighborhood string first, if present"""
+        if m := re.search(r"(.+?)\((.+)\)", s):
+            return f"{m.group(2)} {m.group(1)}"
+        else:
+            return s
+
     return dict(
+        neighborhood_sortable=neighborhood_sortable,
         pretty_datetime=pretty_datetime,
     )
 
