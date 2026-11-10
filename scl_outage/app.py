@@ -1,9 +1,10 @@
-from collections import defaultdict
+from collections import Counter, defaultdict
 import copy
 import datetime
 import itertools
 import json
 import logging
+import math
 import os
 import re
 from pathlib import Path
@@ -18,8 +19,9 @@ from filelock import AsyncFileLock
 import httpx
 from quart import abort, make_response, Quart, render_template, send_file
 
-from .maps import generate_map, get_min_max, get_rings, map_filename
+from .maps import generate_map, get_min_max, get_rings, map_filename, MILES_PER_DEG_LAT
 from .neighborhoods.all import get_neighborhood_index
+from .neighborhoods.base import Match
 
 
 URL = "https://utilisocial.io/datacapable/v2/p/scl/map/events"
@@ -147,7 +149,34 @@ def timestamp_to_datetime(ts, input_type="milliseconds"):
     return datetime.datetime.fromtimestamp(_ts).astimezone(tz=TIMEZONE)
 
 
-def get_neighborhood_for_event(event) -> str:
+DEFAULT_MAX_DISTANCE = 0.25 / MILES_PER_DEG_LAT
+
+
+def get_neighborhood_for_event_by_perimeter(event) -> str | None:
+    """
+    lookup the neighborhood by each coordinate in the geographical rings,
+    and return the neighborhood with the most hits.
+    """
+    rings = get_rings([event])
+    index = get_neighborhood_index()
+    counts: Counter[str] = Counter()
+
+    for ring in rings:
+        for coord in ring:
+            lon, lat = coord[0], coord[1]
+            match = index.find_neighborhood(lat, lon)
+            if match:
+                counts[match.neighborhood.name] += 1
+
+    if counts:
+        return counts.most_common(1)[0][0]
+
+    return None
+
+
+def get_neighborhood_for_event(
+    event, max_distance: float = DEFAULT_MAX_DISTANCE
+) -> str:
     """
     find the midpoint in a geometry ring and use that to determine neighborhood,
     using the indexes available to us
@@ -160,7 +189,28 @@ def get_neighborhood_for_event(event) -> str:
 
     match = get_neighborhood_index().find_neighborhood(lat_mid, lon_mid)
     if match:
-        return match.neighborhood.name
+        # sometimes the geometry rings includes a tiny geographical location
+        # that is wildly far away from what is clearly the "main" area.
+        # the midpoint algorithm above will end up using a point that is far
+        # from the ring points. for these cases, determine the neighborhood by its
+        # ring coordinates
+        cos_lat = math.cos(math.radians(lat_mid))
+        within_max_distance = any(
+            math.hypot((coord[0] - lon_mid) * cos_lat, coord[1] - lat_mid)
+            <= max_distance
+            for ring in rings
+            for coord in ring
+        )
+        if not within_max_distance:
+            by_perimeter = get_neighborhood_for_event_by_perimeter(event)
+            if by_perimeter:
+                return by_perimeter
+        else:
+            return match.neighborhood.name
+    else:
+        by_perimeter = get_neighborhood_for_event_by_perimeter(event)
+        if by_perimeter:
+            return by_perimeter
 
     log.warning(f"Could not find a neighborhood name for ({lat_mid}, {lon_mid})")
 

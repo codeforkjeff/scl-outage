@@ -45,7 +45,7 @@ class Neighborhood:
 class Match:
     neighborhood: Neighborhood
     match_type: str
-    distance: float | int | None = None
+    distance: float | int = 0
 
 
 class NeighborhoodIndex:
@@ -56,7 +56,9 @@ class NeighborhoodIndex:
         self.neighborhoods = neighborhoods
         self.tree = STRtree(self.geometries)
 
-    def find_neighborhood(self, lat: float, lng: float) -> Match | None:
+    def find_neighborhood(
+        self, lat: float, lng: float, max_distance: float = 0.0006
+    ) -> Match | None:
         """Return full details dictionary for the neighborhood at coordinates, or None."""
         if lat is None or lng is None:
             return None
@@ -67,7 +69,7 @@ class NeighborhoodIndex:
             log.debug(f"Trying nearest matches for {lat, lng}")
             # 0.0006 is about 200 ft, I think
             hood_indices, distances = self.tree.query_nearest(
-                point, exclusive=False, max_distance=0.0006, return_distance=True
+                point, exclusive=False, max_distance=max_distance, return_distance=True
             )
             if len(hood_indices) > 0:
                 _neighborhood_matches = [
@@ -94,9 +96,9 @@ class NeighborhoodIndex:
             log.warning(
                 f"More than more exact match found for {lat}, {lng}: {neighborhood_matches}"
             )
-            return Match(neighborhood_matches[0], "exact")
+            return Match(neighborhood_matches[0], "exact", distance=0)
 
-        return Match(self.neighborhoods[matches[0]], "exact")
+        return Match(self.neighborhoods[matches[0]], "exact", distance=0)
 
 
 def create_neighborhood(
