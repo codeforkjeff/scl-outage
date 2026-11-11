@@ -1,15 +1,16 @@
 from pathlib import Path
+from typing import Any, List
 
-from .base import DataSource, load_neighborhoods_from_geojson
+from .base import DataSource, load_neighborhoods_from_geojson, Neighborhood
 
 GEOJSON_PATH = Path(__file__).resolve().parent / "wa.geojson"
 
 
-def extract_name(props: dict):
-    return props.get("CITY_DISSOLVE")
+def extract_name(props: dict[str, Any]) -> str:
+    return str(props.get("CITY_DISSOLVE", ""))
 
 
-def get_wa_cities():
+def get_wa_cities() -> List[Neighborhood]:
     all_cities = load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
     # we don't need everything
     cities_to_keep = ["Burien", "Lake Forest Park", "SeaTac", "Tukwila"]

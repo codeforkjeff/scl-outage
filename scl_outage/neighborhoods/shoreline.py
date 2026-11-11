@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from .base import (
     convert_gdb_to_geojson,
     DataSource,
     load_neighborhoods_from_geojson,
+    Neighborhood,
 )
 
 
@@ -19,11 +20,11 @@ def convert() -> dict[str, Any]:
     )
 
 
-def extract_name(props: dict):
+def extract_name(props: dict[str, Any]) -> str:
     return f"{props.get('NAME')} (Shoreline)"
 
 
-def get_shoreline_neighborhoods():
+def get_shoreline_neighborhoods() -> List[Neighborhood]:
     return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
 
 

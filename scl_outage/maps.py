@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import datetime
 from hashlib import md5
 import io
 import json
@@ -9,7 +10,7 @@ import os
 import os.path
 import sys
 import time
-from typing import Iterable, List
+from typing import Any, Iterable, List, NotRequired, TypedDict
 from pathlib import Path
 
 import aiofiles
@@ -23,6 +24,43 @@ from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.collections import PatchCollection
 
 matplotlib.use("Agg")
+
+type Coord = list[float]
+type Ring = list[Coord]
+type Rings = list[Ring]
+
+
+class SpatialReference(TypedDict):
+    latestWkid: int
+    wkid: int
+
+
+class EventPolygons(TypedDict):
+    type: str
+    spatialReference: SpatialReference
+    rings: Rings
+    hasZ: bool
+    hasM: bool
+
+
+class Event(TypedDict):
+    id: int
+    type: NotRequired[str]
+    startTime: int | datetime.datetime | str
+    lastUpdatedTime: int | datetime.datetime | str
+    etrTime: NotRequired[int | datetime.datetime | str]
+    title: str
+    numPeople: int
+    status: NotRequired[str]
+    cause: str
+    identifier: str
+    latitude: float
+    longitude: float
+    polygons: EventPolygons
+    city: str
+    state: str
+    neighborhood: NotRequired[str]
+
 
 CACHE_DIR = "tile_cache"
 DEFAULT_INPUT = Path("events.json")
@@ -42,7 +80,7 @@ MILES_PER_DEG_LAT = 69.0
 log = logging.getLogger(__name__)
 
 
-def deg2num(lat: float, lon: float, zoom: int) -> tuple:
+def deg2num(lat: float, lon: float, zoom: int) -> tuple[float, float]:
     """Lat/lon -> fractional OSM tile number."""
     lat_r = math.radians(lat)
     n = 2**zoom
@@ -51,7 +89,9 @@ def deg2num(lat: float, lon: float, zoom: int) -> tuple:
     return x, y
 
 
-def pad_bbox(lat_min, lat_max, lon_min, lon_max, miles: float):
+def pad_bbox(
+    lat_min: float, lat_max: float, lon_min: float, lon_max: float, miles: float
+) -> tuple[float, float, float, float]:
     """Expand a bounding box by at least `miles` on all sides."""
     ctr_lat = (lat_min + lat_max) / 2.0
     d_lat = miles / MILES_PER_DEG_LAT
@@ -70,14 +110,14 @@ def choose_zoom(lat_span: float, lon_span: float, max_px: int = 1024) -> int:
     return 10
 
 
-def cache_filename(params: Iterable):
+def cache_filename(params: Iterable[Any]) -> str:
     key = "_".join([str(p) for p in params])
     return "tile_" + key
 
 
 async def fetch_tile(
     z: int, x: int, y: int, client: httpx.AsyncClient | None = None
-):
+) -> Image.Image | None:
     """returns an Image object"""
     key = (z, x, y)
 
@@ -131,7 +171,7 @@ async def check_network() -> bool:
         return False
 
 
-def map_filename(events: List):
+def map_filename(events: List[Event]) -> str:
     events_sorted = sorted(events, key=lambda e: int(e["identifier"]))
     event_ids = [int(e["identifier"]) for e in events_sorted]
     event_ids_str = "_".join([str(event_id) for event_id in event_ids])
@@ -141,7 +181,14 @@ def map_filename(events: List):
     return f"region_{event_ids_str}_{hash}.png"
 
 
-async def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
+async def osm_render(
+    rings: Rings,
+    lat_min: float,
+    lat_max: float,
+    lon_min: float,
+    lon_max: float,
+    zoom: int,
+) -> Image.Image:
     """Build an image from OSM tiles with the rings drawn on top."""
     fx_min, fy_max = deg2num(lat_min, lon_min, zoom)
     fx_max, fy_min = deg2num(lat_max, lon_max, zoom)
@@ -183,7 +230,7 @@ async def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
     if fetched == 0:
         raise RuntimeError("No tiles fetched")
 
-    def ll2px(lat, lon):
+    def ll2px(lat: float, lon: float) -> tuple[int, int]:
         fx, fy = deg2num(lat, lon, zoom)
         return int((fx - tx_min) * TILE_SIZE), int((fy - ty_min) * TILE_SIZE)
 
@@ -210,7 +257,14 @@ async def osm_render(rings, lat_min, lat_max, lon_min, lon_max, zoom):
     return comp.convert("RGB")
 
 
-def mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event: dict | None = None):
+def mpl_render(
+    rings: Rings,
+    lat_min: float,
+    lat_max: float,
+    lon_min: float,
+    lon_max: float,
+    event: Event | dict[str, Any] | None = None,
+) -> Image.Image:
     """Render a clean cartographic-style map with matplotlib (no tile download)."""
 
     lon_span = lon_max - lon_min
@@ -326,22 +380,23 @@ def mpl_render(rings, lat_min, lat_max, lon_min, lon_max, event: dict | None = N
     return Image.open(buf).convert("RGB")
 
 
-def get_rings(events):
-    rings = []
+def get_rings(events: Iterable[Event]) -> Rings:
+    rings: Rings = []
     for event in events:
-        poly_obj = event.get("polygons", {})
-        rings.extend(poly_obj.get("rings", []))
+        poly_obj = event.get("polygons")
+        if poly_obj:
+            rings.extend(poly_obj.get("rings", []))
     return rings
 
 
-def geojson_geometry_to_rings(geom: dict):
+def geojson_geometry_to_rings(geom: dict[str, Any] | None) -> Rings:
     """
     Transforms the "geometry" property of a feature in a geojson file
     into "rings" format found in SCL events
     """
-    rings = []
+    rings: Rings = []
     if not geom:
-        return
+        return rings
     gtype = geom.get("type")
     coords = geom.get("coordinates", [])
     if gtype == "Polygon":
@@ -352,7 +407,7 @@ def geojson_geometry_to_rings(geom: dict):
     return rings
 
 
-async def get_geojson_rings(geojson_source: dict | Path | str) -> list:
+async def get_geojson_rings(geojson_source: dict[str, Any] | Path | str) -> Rings:
     """Extract polygon coordinate rings from GeoJSON (dict, file path, or string path)."""
     if isinstance(geojson_source, (str, Path)):
         async with aiofiles.open(geojson_source, "r", encoding="utf-8") as f:
@@ -361,7 +416,7 @@ async def get_geojson_rings(geojson_source: dict | Path | str) -> list:
     else:
         data = geojson_source
 
-    rings = []
+    rings: Rings = []
     for feature in data.get("features", []):
         geom = feature.get("geometry")
         if not geom:
@@ -376,7 +431,9 @@ async def get_geojson_rings(geojson_source: dict | Path | str) -> list:
     return rings
 
 
-def get_min_max(rings):
+def get_min_max(
+    rings: Rings,
+) -> tuple[float, float, float, float] | tuple[None, None, None, None]:
     """Returns min and max lat and lon values in a set of events"""
     if not rings:
         return (None, None, None, None)
@@ -398,15 +455,20 @@ def get_min_max(rings):
 
 
 async def generate_map_from_rings(
-    rings: List,
+    rings: Rings,
     output_path: Path,
-    zoom_override=None,
+    zoom_override: int | None = None,
     padding_miles: float = DEFAULT_PADDING,
     use_osm: bool = True,
-    event: dict | None = None,
-):
+    event: Event | dict[str, Any] | None = None,
+) -> Path | None:
     e_lat_min, e_lat_max, e_lon_min, e_lon_max = get_min_max(rings)
-    if e_lat_min is None:
+    if (
+        e_lat_min is None
+        or e_lat_max is None
+        or e_lon_min is None
+        or e_lon_max is None
+    ):
         return None
 
     lat_min, lat_max, lon_min, lon_max = pad_bbox(
@@ -428,12 +490,12 @@ async def generate_map_from_rings(
 
 
 async def generate_map(
-    events: List[dict],
+    events: List[Event],
     output_path: Path,
-    zoom_override,
+    zoom_override: int | None,
     padding_miles: float,
     use_osm: bool,
-):
+) -> Path | None:
     rings = get_rings(events)
     return await generate_map_from_rings(
         rings,
@@ -450,7 +512,7 @@ async def generate_map(
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -471,7 +533,7 @@ def parse_args():
     return p.parse_args()
 
 
-async def async_main():
+async def async_main() -> None:
     args = parse_args()
 
     src = Path(args.input)
@@ -479,7 +541,7 @@ async def async_main():
         sys.exit(f"Input file not found: {src}")
     async with aiofiles.open(src, "r", encoding="utf-8") as f:
         content = await f.read()
-        events = json.loads(content)
+        events: list[Event] = json.loads(content)
 
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -519,7 +581,7 @@ async def async_main():
     log.debug(f"Done - {ok}/{len(events)} maps saved to {out_dir}")
 
 
-def main():
+def main() -> None:
     asyncio.run(async_main())
 
 

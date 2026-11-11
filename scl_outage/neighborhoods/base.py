@@ -29,15 +29,15 @@ class DataSource:
     url: str | None
     datasource_path: Path | None
     geojson_path: Path | None
-    convert_fn: Callable | None
-    neighborhoods_fn: Callable
+    convert_fn: Callable[[], dict[str, Any]] | None
+    neighborhoods_fn: Callable[[], List[Neighborhood]]
     priority: int
 
 
 @dataclass
 class Neighborhood:
     name: str
-    geometry: object
+    geometry: shapely.Geometry
     source: DataSource
 
 
@@ -51,7 +51,7 @@ class Match:
 class NeighborhoodIndex:
     """Spatial index of neighborhoods using Shapely's STRtree."""
 
-    def __init__(self, neighborhoods: List[Neighborhood]):
+    def __init__(self, neighborhoods: List[Neighborhood]) -> None:
         self.geometries = [n.geometry for n in neighborhoods]
         self.neighborhoods = neighborhoods
         self.tree = STRtree(self.geometries)
@@ -102,7 +102,9 @@ class NeighborhoodIndex:
 
 
 def create_neighborhood(
-    feature: dict, extract_name: Callable, source: DataSource
+    feature: dict[str, Any],
+    extract_name: Callable[[dict[str, Any]], str],
+    source: DataSource,
 ) -> Neighborhood:
     """
     Create a Neighborhood object out of a feature record found in a geojson file
@@ -114,7 +116,9 @@ def create_neighborhood(
 
 
 def load_neighborhoods_from_geojson(
-    geojson_path: Path | str, extract_name: Callable, source: DataSource
+    geojson_path: Path | str,
+    extract_name: Callable[[dict[str, Any]], str],
+    source: DataSource,
 ) -> List[Neighborhood]:
     """
     Read a geojson file and create Neighborhood objects out of it
@@ -144,7 +148,7 @@ def _sanitize_property_value(val: Any) -> Any:
 
 def convert_gdb_to_geojson(
     gdb_path: Path,
-    output_path: Path,
+    output_path: Path | None,
     layer: str,
 ) -> dict[str, Any]:
     """Convert a GDB .zip file or uncompressed directory to WGS84 GeoJSON."""

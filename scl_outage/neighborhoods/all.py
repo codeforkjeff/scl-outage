@@ -17,7 +17,7 @@ modules = [
     "wa_cdp",
 ]
 
-_data_sources = None
+_data_sources: List[DataSource] | None = None
 
 
 def get_data_sources() -> List[DataSource]:
@@ -33,7 +33,7 @@ def get_data_sources() -> List[DataSource]:
     return _data_sources
 
 
-def create_neighborhood_index(data_sources: List[DataSource]):
+def create_neighborhood_index(data_sources: List[DataSource]) -> NeighborhoodIndex:
     return NeighborhoodIndex(
         list(
             chain.from_iterable(
@@ -43,10 +43,10 @@ def create_neighborhood_index(data_sources: List[DataSource]):
     )
 
 
-_neighborhood_index = None
+_neighborhood_index: NeighborhoodIndex | None = None
 
 
-def get_neighborhood_index():
+def get_neighborhood_index() -> NeighborhoodIndex:
     """
     singleton index that contains data from all neighborhood data sources
     """

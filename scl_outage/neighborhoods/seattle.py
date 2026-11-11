@@ -1,21 +1,22 @@
 from pathlib import Path
+from typing import Any, List
 
-from .base import DataSource, load_neighborhoods_from_geojson
+from .base import DataSource, load_neighborhoods_from_geojson, Neighborhood
 
 GEOJSON_PATH = Path(__file__).resolve().parent / "seattle.geojson"
 
 
-def extract_name(props: dict):
+def extract_name(props: dict[str, Any]) -> str:
     s_hood = props.get("S_HOOD")
     l_hood = props.get("L_HOOD")
     if s_hood != l_hood:
         name = f"{s_hood} ({l_hood})"
     else:
-        name = s_hood
+        name = str(s_hood)
     return name
 
 
-def get_seattle_neighborhoods():
+def get_seattle_neighborhoods() -> List[Neighborhood]:
     return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
 
 

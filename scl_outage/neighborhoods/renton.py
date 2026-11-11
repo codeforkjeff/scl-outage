@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 from .base import (
     convert_gdb_to_geojson,
     DataSource,
     load_neighborhoods_from_geojson,
+    Neighborhood,
 )
 
 GDB_PATH = Path(__file__).resolve().parent / "renton.gdb.zip"
@@ -17,11 +18,11 @@ def convert() -> dict[str, Any]:
     )
 
 
-def extract_name(props: dict):
+def extract_name(props: dict[str, Any]) -> str:
     return f"{props.get('Neighborhood')} (Renton)"
 
 
-def get_renton_neighborhoods():
+def get_renton_neighborhoods() -> List[Neighborhood]:
     return load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
 
 

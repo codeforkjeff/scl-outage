@@ -9,7 +9,7 @@ import os
 import re
 from pathlib import Path
 import time
-from typing import DefaultDict
+from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 import aiofiles
@@ -17,9 +17,16 @@ import aiofiles.os
 from cachetools import cached, TTLCache
 from filelock import AsyncFileLock
 import httpx
-from quart import abort, make_response, Quart, render_template, send_file
+from quart import abort, make_response, Quart, render_template, Response, send_file
 
-from .maps import generate_map, get_min_max, get_rings, map_filename, MILES_PER_DEG_LAT
+from .maps import (
+    Event,
+    generate_map,
+    get_min_max,
+    get_rings,
+    map_filename,
+    MILES_PER_DEG_LAT,
+)
 from .neighborhoods.all import get_neighborhood_index
 from .neighborhoods.base import Match
 
@@ -42,7 +49,7 @@ day_suffixes = defaultdict(lambda: "th", {1: "st", 2: "nd", 3: "rd"})
 special_suffixes = {11: "th", 12: "th", 13: "th"}
 
 
-def get_suffix(n: int):
+def get_suffix(n: int) -> str:
     mod_10 = n % 10
     mod_100 = n % 100
     return special_suffixes.get(mod_100, day_suffixes[mod_10])
@@ -56,23 +63,25 @@ if os.getenv("DEV"):
 
 
 @app.before_serving
-async def startup():
+async def startup() -> None:
     get_neighborhood_index()
 
 
 @app.context_processor
-def utility_processor():
-    def pretty_time(dt):
+def utility_processor() -> dict[str, Callable[..., Any]]:
+    def pretty_time(dt: datetime.datetime) -> str:
         s = dt.strftime("%I:%M") + dt.strftime("%p").lower()
         return re.sub(r"^0", "", s)
 
-    def pretty_date(dt):
+    def pretty_date(dt: datetime.datetime) -> str:
         mon = dt.strftime("%b")
         day = int(re.sub(r"^0", "", dt.strftime("%d")))
         suffix = get_suffix(day)
         return f"{mon} {day}{suffix}"
 
-    def pretty_datetime(dt, hide_date_if_today=True):
+    def pretty_datetime(
+        dt: datetime.datetime | str | None, hide_date_if_today: bool = True
+    ) -> str:
         """show just time portion if date is today's date"""
         now = get_now()
         if isinstance(dt, datetime.datetime):
@@ -84,7 +93,7 @@ def utility_processor():
         else:
             return dt or "-"
 
-    def neighborhood_sortable(s):
+    def neighborhood_sortable(s: str) -> str:
         """sorts by the parenthesized value in neighborhood string first, if present"""
         if m := re.search(r"(.+?)\((.+)\)", s):
             return f"{m.group(2)} {m.group(1)}"
@@ -98,13 +107,13 @@ def utility_processor():
 
 
 @cached(cache=TTLCache(maxsize=1024, ttl=2))
-def get_now():
+def get_now() -> datetime.datetime:
     return datetime.datetime.now(tz=TIMEZONE)
 
 
-async def get_events():
+async def get_events() -> tuple[list[Event], float]:
     raw = None
-    events_timestamp = 0
+    events_timestamp: float = 0
 
     from_environ = os.environ.get("EVENTS_PATH")
     if from_environ:
@@ -138,12 +147,14 @@ async def get_events():
                     await output_file.write(raw)
                 stat = await aiofiles.os.stat(EVENTS_PATH)
                 events_timestamp = stat.st_mtime
-    events = json.loads(raw)
+    events: list[Event] = json.loads(raw)
     return (events, events_timestamp)
 
 
-def timestamp_to_datetime(ts, input_type="milliseconds"):
-    _ts = ts
+def timestamp_to_datetime(
+    ts: int | float | str, input_type: str = "milliseconds"
+) -> datetime.datetime:
+    _ts: float = float(ts)
     if input_type == "milliseconds":
         _ts = int(ts) / 1000
     return datetime.datetime.fromtimestamp(_ts).astimezone(tz=TIMEZONE)
@@ -152,7 +163,7 @@ def timestamp_to_datetime(ts, input_type="milliseconds"):
 DEFAULT_MAX_DISTANCE = 0.25 / MILES_PER_DEG_LAT
 
 
-def get_neighborhood_for_event_by_perimeter(event) -> str | None:
+def get_neighborhood_for_event_by_perimeter(event: Event) -> str | None:
     """
     lookup the neighborhood by each coordinate in the geographical rings,
     and return the neighborhood with the most hits.
@@ -175,7 +186,7 @@ def get_neighborhood_for_event_by_perimeter(event) -> str | None:
 
 
 def get_neighborhood_for_event(
-    event, max_distance: float = DEFAULT_MAX_DISTANCE
+    event: Event, max_distance: float = DEFAULT_MAX_DISTANCE
 ) -> str:
     """
     find the midpoint in a geometry ring and use that to determine neighborhood,
@@ -218,7 +229,7 @@ def get_neighborhood_for_event(
 
 
 @app.route("/")
-async def index():
+async def index() -> Response:
     events_data, events_timestamp = await get_events()
     events = copy.deepcopy(events_data)
 
@@ -226,9 +237,13 @@ async def index():
     total_people_affected = 0
 
     for e in events:
-        for time_field in ["startTime", "lastUpdatedTime", "etrTime"]:
+        for time_field in ("startTime", "lastUpdatedTime", "etrTime"):
             val = e.get(time_field)
-            e[time_field] = timestamp_to_datetime(val) if val else "Unknown"
+            e[time_field] = (
+                timestamp_to_datetime(val)
+                if isinstance(val, (int, float, str)) and val
+                else "Unknown"
+            )
         e["status"] = e.get("status", "Unknown")
 
         e["neighborhood"] = get_neighborhood_for_event(e)
@@ -265,7 +280,7 @@ async def index():
 
 
 @app.route("/events_map/<event_ids_str>")
-async def events_map(event_ids_str: str):
+async def events_map(event_ids_str: str) -> Response:
     events, _ = await get_events()
 
     event_ids = sorted([int(e_id.strip()) for e_id in event_ids_str.split(",")])
@@ -275,7 +290,9 @@ async def events_map(event_ids_str: str):
     filtered_events = [e for e in events if int(e["identifier"]) in event_ids]
 
     if len(filtered_events) != len(event_ids):
-        non_existent = set(event_ids) - set([e["identifier"] for e in filtered_events])
+        non_existent = set(event_ids) - set(
+            [int(e["identifier"]) for e in filtered_events]
+        )
         abort(404, description=f"Non existent event ids: {non_existent}")
 
     output_dir = Path("maps")

@@ -1,15 +1,16 @@
 from pathlib import Path
+from typing import Any, List
 
-from .base import DataSource, load_neighborhoods_from_geojson
+from .base import DataSource, load_neighborhoods_from_geojson, Neighborhood
 
 GEOJSON_PATH = Path(__file__).resolve().parent / "wa_cdp.geojson"
 
 
-def extract_name(props: dict):
-    return props.get("NAME")
+def extract_name(props: dict[str, Any]) -> str:
+    return str(props.get("NAME", ""))
 
 
-def get_wa_cdp():
+def get_wa_cdp() -> List[Neighborhood]:
     all_places = load_neighborhoods_from_geojson(GEOJSON_PATH, extract_name, datasource)
     # we don't need everything
     places_to_keep = [

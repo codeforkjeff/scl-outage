@@ -6,6 +6,7 @@ import argparse
 import asyncio
 from itertools import chain
 from pathlib import Path
+from typing import Any
 
 import aiofiles
 import aiofiles.os
@@ -14,6 +15,7 @@ from shapely.geometry import mapping
 
 from ..maps import (
     DEFAULT_PADDING,
+    Rings,
     check_network,
     generate_map_from_rings,
     geojson_geometry_to_rings,
@@ -22,11 +24,14 @@ from ..maps import (
 from .all import create_neighborhood_index, get_data_sources, get_neighborhood_index
 
 
-async def load():
+async def load() -> None:
     async with httpx.AsyncClient(timeout=30.0) as client:
         for data_source in get_data_sources():
             if data_source.datasource_path:
-                if not await aiofiles.os.path.exists(data_source.datasource_path):
+                if (
+                    not await aiofiles.os.path.exists(data_source.datasource_path)
+                    and data_source.url
+                ):
                     print(
                         f"Downloading from {data_source.url} to {data_source.datasource_path}"
                     )
@@ -35,10 +40,15 @@ async def load():
                     async with aiofiles.open(data_source.datasource_path, "wb") as f:
                         await f.write(resp.content)
 
-                geojson_exists = await aiofiles.os.path.exists(data_source.geojson_path)
+                geojson_exists = (
+                    await aiofiles.os.path.exists(data_source.geojson_path)
+                    if data_source.geojson_path
+                    else False
+                )
                 if not geojson_exists:
                     should_convert = True
                 else:
+                    assert data_source.geojson_path is not None
                     ds_stat = await aiofiles.os.stat(data_source.datasource_path)
                     geo_stat = await aiofiles.os.stat(data_source.geojson_path)
                     should_convert = ds_stat.st_mtime >= geo_stat.st_mtime
@@ -56,12 +66,12 @@ async def coverage(
     if target_path.is_dir():
         target_path = target_path / "coverage.png"
 
-    def x(val):
+    def x(val: Any) -> dict[str, Any]:
         tmp = mapping(val)
         print(tmp)
         return tmp
 
-    rings = []
+    rings: Rings = []
     for data_source in get_data_sources():
         rings.extend(
             list(
