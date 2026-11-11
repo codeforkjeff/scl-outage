@@ -10,7 +10,7 @@ dependencies = [
     "filelock==4.0.3",
     "uvicorn==0.54.0",
     "httpx==0.28.1",
-    "pillow==12.3.0",
+    "pillow==13.0.0",
     "matplotlib==3.10.8",
     "quart==0.23.1",
     "shapely==2.1.2",
